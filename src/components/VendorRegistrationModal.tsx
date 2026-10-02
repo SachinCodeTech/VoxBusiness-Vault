@@ -10,9 +10,16 @@ import {
   Image as ImageIcon,
   ShieldCheck,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Globe,
+  Store,
+  Smartphone,
+  Mail,
+  MessageCircle,
+  Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { BusinessType, OnlineContactChannel } from '../types';
 
 export const VendorRegistrationModal: React.FC = () => {
   const {
@@ -27,6 +34,14 @@ export const VendorRegistrationModal: React.FC = () => {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+  // Business Operating Type
+  const [businessType, setBusinessType] = useState<BusinessType>('physical');
+  const [primaryOnlineChannel, setPrimaryOnlineChannel] = useState<OnlineContactChannel>('website');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [appStoreUrl, setAppStoreUrl] = useState('');
+  const [serviceRegionsInput, setServiceRegionsInput] = useState('All Gujarat, Pan-India');
+  const [showPublicAddress, setShowPublicAddress] = useState(true);
 
   // Form states
   const [businessName, setBusinessName] = useState('');
@@ -64,8 +79,16 @@ export const VendorRegistrationModal: React.FC = () => {
     e.preventDefault();
     setDuplicateWarning(null);
 
-    // Duplicate protection check at Step 1
+    // Validation for Step 1
     if (currentStep === 1) {
+      if (businessType === 'online' && !primaryOnlineChannel) {
+        setDuplicateWarning('Please choose your primary online contact or destination channel.');
+        return;
+      }
+    }
+
+    // Duplicate check at Step 2 (Contact Info)
+    if (currentStep === 2) {
       const cleanPhone = phone.replace(/\D/g, '');
       const existing = vendors.find(
         (v) =>
@@ -76,6 +99,22 @@ export const VendorRegistrationModal: React.FC = () => {
         setDuplicateWarning(
           `Notice: A similar business "${existing.businessName}" in ${existing.city} is already registered. If this is your business, you can claim or verify it.`
         );
+      }
+
+      // Online business destination validation
+      if (businessType === 'online') {
+        if (primaryOnlineChannel === 'website' && !websiteUrl.trim() && !email.trim()) {
+          setDuplicateWarning('Please provide your business website/store URL or email address.');
+          return;
+        }
+      }
+    }
+
+    // Step 4 (Location) validation
+    if (currentStep === 4) {
+      if (businessType === 'physical' && !address.trim()) {
+        setDuplicateWarning('Physical businesses require a valid shop or office street address.');
+        return;
       }
     }
 
@@ -88,36 +127,50 @@ export const VendorRegistrationModal: React.FC = () => {
         .map((s) => s.trim())
         .filter(Boolean);
 
+      const isOnline = businessType === 'online';
+      const regionsArray = serviceRegionsInput
+        .split(',')
+        .map((r) => r.trim())
+        .filter(Boolean);
+
       const res = registerVendor({
         businessName: businessName.trim(),
         ownerName: ownerName.trim(),
+        businessType,
         phone: phone.trim(),
         whatsapp: whatsapp.replace(/\D/g, ''),
         email: email.trim() || undefined,
+        websiteUrl: websiteUrl.trim() || undefined,
+        appStoreUrl: appStoreUrl.trim() || undefined,
+        primaryOnlineChannel: businessType !== 'physical' ? primaryOnlineChannel : undefined,
+        serviceRegions: businessType !== 'physical' ? (regionsArray.length > 0 ? regionsArray : ['All Gujarat', 'Pan-India']) : ['Gujarat'],
+        showPublicAddress: isOnline ? false : showPublicAddress,
         categoryId,
         subcategoryId,
         services: servicesArray.length > 0 ? servicesArray : ['General Service', 'Doorstep Repair'],
         state: 'Gujarat',
-        city,
-        area,
-        address: address.trim() || `${area}, ${city}`,
-        pincode: pincode.trim(),
-        lat: currentCityObj.lat + (Math.random() - 0.5) * 0.05,
-        lng: currentCityObj.lng + (Math.random() - 0.5) * 0.05,
-        description: description.trim() || `Experienced ${selectedCatObj.name} service provider serving ${area}, ${city}. Quality workmanship with transparent local pricing.`,
+        city: city || 'Ahmedabad',
+        area: isOnline ? undefined : (area || 'Satellite'),
+        address: isOnline ? undefined : (address.trim() || `${area}, ${city}`),
+        pincode: isOnline ? undefined : (pincode.trim() || '380015'),
+        lat: isOnline ? undefined : currentCityObj.lat + (Math.random() - 0.5) * 0.05,
+        lng: isOnline ? undefined : currentCityObj.lng + (Math.random() - 0.5) * 0.05,
+        description: description.trim() || `${businessType === 'online' ? 'Online' : 'Verified'} ${selectedCatObj.name} provider serving ${city}, Gujarat. Transparent pricing and professional delivery.`,
         experienceYears: Number(experienceYears) || 3,
         startingPrice: Number(startingPrice) || 199,
         verificationStatus: 'pending',
         isPhoneVerified: true,
-        isLocationVerified: true,
+        isEmailVerified: Boolean(email.trim()),
+        isLocationVerified: isOnline ? false : true,
         isDocsVerified: false,
+        isIdentityVerified: false,
         businessHours: {
           days: 'Mon - Sun',
           openTime,
           closeTime,
           isOpenToday: true
         },
-        serviceAtCustomerLocation,
+        serviceAtCustomerLocation: isOnline ? false : serviceAtCustomerLocation,
         logoUrl: logoUrl.trim(),
         bannerUrl: bannerUrl.trim() || undefined,
         currentSnaps: currentSnapsInput
@@ -140,17 +193,16 @@ export const VendorRegistrationModal: React.FC = () => {
     setIsRegistrationModalOpen(false);
     setCurrentStep(1);
     setRegisteredVendorId(null);
+    setDuplicateWarning(null);
   };
 
-  // Close on Escape key
   useEffect(() => {
-    if (!isRegistrationModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
+      if (e.key === 'Escape') handleClose();
     };
-    window.addEventListener('keydown', handleKeyDown);
+    if (isRegistrationModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isRegistrationModalOpen]);
 
@@ -168,10 +220,10 @@ export const VendorRegistrationModal: React.FC = () => {
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Vendor Registration — Gujarat Only
+              Register Your Business — Gujarat Directory
             </h3>
             <p className="text-xs text-slate-500">
-              Step {currentStep} of 6 · Join Gujarat’s leading local service network
+              Step {currentStep} of 6 · {businessType === 'online' ? 'Online Business' : businessType === 'hybrid' ? 'Hybrid Business' : 'Physical Shop/Office'}
             </p>
           </div>
           <button
@@ -203,19 +255,25 @@ export const VendorRegistrationModal: React.FC = () => {
                 Application Submitted Successfully!
               </h4>
               <p className="text-xs text-slate-500 mt-1">
-                Vendor ID: <strong>{registeredVendorId}</strong> · Status: Pending Admin Verification
+                Vendor ID: <strong>{registeredVendorId}</strong> · Operating Type: <strong className="uppercase">{businessType}</strong>
               </p>
             </div>
 
             <div className="p-4 bg-sky-50/60 dark:bg-sky-950/40 rounded-2xl border border-sky-100 dark:border-sky-900 text-left text-xs space-y-2 text-sky-900 dark:text-sky-200">
               <p>
-                ✓ Your business profile is now created with a permanent unique QR token.
+                ✓ Your business profile is now active with a permanent unique QR token.
               </p>
+              {businessType === 'online' ? (
+                <p>
+                  ✓ <strong>Online Business Advantage:</strong> Zero physical address is published. Customers can visit your website, start WhatsApp chats, or submit direct service enquiries.
+                </p>
+              ) : (
+                <p>
+                  ✓ Your physical location is mapped for local customers in {city}, Gujarat.
+                </p>
+              )}
               <p>
-                ✓ You can start sharing your profile with customers immediately.
-              </p>
-              <p>
-                ✓ CodeTech admin team will verify your phone and address within 24 hours to award the <strong>Verified Business ✓</strong> badge.
+                ✓ Admin team reviews contact and business credentials independently to award verified badges.
               </p>
             </div>
 
@@ -237,21 +295,178 @@ export const VendorRegistrationModal: React.FC = () => {
               </div>
             )}
 
-            {/* STEP 1: Basic Information */}
+            {/* STEP 1: Business Operating Model */}
             {currentStep === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    1. Operating Model
+                  </div>
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                    How does your business operate?
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Choose the model that fits your operations. Online businesses are not required to provide a street address.
+                  </p>
+                </div>
+
+                {/* 3 Interactive Cards */}
+                <div className="grid grid-cols-1 gap-2.5">
+                  {/* Physical Business */}
+                  <div
+                    onClick={() => setBusinessType('physical')}
+                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
+                      businessType === 'physical'
+                        ? 'bg-sky-50/80 dark:bg-sky-950/40 border-sky-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <div
+                      className={`p-2.5 rounded-xl shrink-0 ${
+                        businessType === 'physical'
+                          ? 'bg-sky-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          Physical Business — Shop / Office
+                        </span>
+                        {businessType === 'physical' && <CheckCircle2 className="w-4 h-4 text-sky-600" />}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        For shops, restaurants, malls, clinics, salons, workshops and other businesses customers can visit in person.
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded-md">
+                        Physical address required · Public visibility configurable
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Online Business */}
+                  <div
+                    onClick={() => setBusinessType('online')}
+                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
+                      businessType === 'online'
+                        ? 'bg-purple-50/80 dark:bg-purple-950/40 border-purple-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <div
+                      className={`p-2.5 rounded-xl shrink-0 ${
+                        businessType === 'online'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          Online Business — No Physical Address Required
+                        </span>
+                        {businessType === 'online' && <CheckCircle2 className="w-4 h-4 text-purple-600" />}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        For e-commerce stores, website/app developers, AI services, SaaS products, digital agencies, remote consultants.
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 px-2 py-0.5 rounded-md">
+                        ✓ No physical street address or map pin required · Permanent QR benefits
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Hybrid Business */}
+                  <div
+                    onClick={() => setBusinessType('hybrid')}
+                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
+                      businessType === 'hybrid'
+                        ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <div
+                      className={`p-2.5 rounded-xl shrink-0 ${
+                        businessType === 'hybrid'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <Store className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          Hybrid Business — Online & Offline
+                        </span>
+                        {businessType === 'hybrid' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        For restaurants offering dine-in & delivery, retailers with store & online shipping, or on-site & remote work.
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 px-2 py-0.5 rounded-md">
+                        Physical location + online channels configured independently
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Online Destination for Online / Hybrid */}
+                {businessType !== 'physical' && (
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                      Primary Online Contact or Destination *
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: 'website', label: 'Business Website', icon: Globe },
+                        { id: 'whatsapp', label: 'WhatsApp Biz', icon: MessageCircle },
+                        { id: 'email', label: 'Business Email', icon: Mail },
+                        { id: 'app', label: 'App / Platform', icon: Smartphone }
+                      ].map((ch) => {
+                        const Icon = ch.icon;
+                        const isSelected = primaryOnlineChannel === ch.id;
+                        return (
+                          <button
+                            type="button"
+                            key={ch.id}
+                            onClick={() => setPrimaryOnlineChannel(ch.id as any)}
+                            className={`p-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                              isSelected
+                                ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
+                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            <span>{ch.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STEP 2: Basic Contact & Online Links */}
+            {currentStep === 2 && (
               <div className="space-y-3">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  1. Basic Contact Information
+                  2. Business Contact & Channels
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Business / Shop Name *
+                    Business / Brand Name *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Patel Electricals & Solar"
+                    placeholder={businessType === 'online' ? 'e.g. Gujarat Digital Agency & Cloud' : 'e.g. Patel Electricals & Solar'}
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
@@ -260,7 +475,7 @@ export const VendorRegistrationModal: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Proprietor / Owner Name *
+                    Proprietor / Founder / Owner Name *
                   </label>
                   <input
                     type="text"
@@ -289,7 +504,7 @@ export const VendorRegistrationModal: React.FC = () => {
 
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      WhatsApp Number (with 91 prefix) *
+                      WhatsApp Number (91 prefix) *
                     </label>
                     <input
                       type="text"
@@ -304,7 +519,7 @@ export const VendorRegistrationModal: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Email Address (Optional)
+                    Business Email {businessType === 'online' ? '(Recommended for notifications)' : '(Optional)'}
                   </label>
                   <input
                     type="email"
@@ -314,14 +529,44 @@ export const VendorRegistrationModal: React.FC = () => {
                     className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                   />
                 </div>
+
+                {businessType !== 'physical' && (
+                  <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Business Website / Online Store URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://yourstore.com or https://company.in"
+                        value={websiteUrl}
+                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                        className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        App Link or Digital Platform Link (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://play.google.com/store/apps/... or web app link"
+                        value={appStoreUrl}
+                        onChange={(e) => setAppStoreUrl(e.target.value)}
+                        className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* STEP 2: Category & Services */}
-            {currentStep === 2 && (
+            {/* STEP 3: Category & Services */}
+            {currentStep === 3 && (
               <div className="space-y-3">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  2. Business Category & Services
+                  3. Business Category & Services
                 </div>
 
                 <div>
@@ -366,12 +611,16 @@ export const VendorRegistrationModal: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Services Offered (Comma separated) *
+                    Services or Products Offered (Comma separated) *
                   </label>
                   <textarea
                     rows={3}
                     required
-                    placeholder="Wiring Repair, Switchboard Fitting, Fan Installation, MCB Replacement"
+                    placeholder={
+                      businessType === 'online'
+                        ? 'Ecommerce Store, Custom React Web Apps, Mobile Apps, Cloud APIs, AI Chatbot Setup'
+                        : 'Wiring Repair, Switchboard Fitting, Fan Installation, MCB Replacement'
+                    }
                     value={servicesInput}
                     onChange={(e) => setServicesInput(e.target.value)}
                     className="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
@@ -383,95 +632,191 @@ export const VendorRegistrationModal: React.FC = () => {
               </div>
             )}
 
-            {/* STEP 3: Gujarat Location */}
-            {currentStep === 3 && (
-              <div className="space-y-3">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  3. Gujarat Location Hierarchy
-                </div>
-
-                <div className="p-3 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-xs text-sky-800 dark:text-sky-300">
-                  State: <strong>Gujarat, India (Mandatory)</strong>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Gujarat City *
-                    </label>
-                    <select
-                      value={city}
-                      onChange={(e) => {
-                        setCity(e.target.value);
-                        const c = cities.find((ci) => ci.name === e.target.value);
-                        if (c && c.areas.length > 0) {
-                          setArea(c.areas[0]);
-                        }
-                      }}
-                      className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
-                    >
-                      {cities.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name} ({c.gujaratiName})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Area / Locality in {city} *
-                    </label>
-                    <select
-                      value={area}
-                      onChange={(e) => setArea(e.target.value)}
-                      className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
-                    >
-                      {currentCityObj.areas.map((a) => (
-                        <option key={a} value={a}>
-                          {a}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Shop / Service Hub Address
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Shop 12, Ground Floor, Complex Name, Main Road"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Gujarat Pincode (6 Digits) *
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    required
-                    placeholder="380015"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* STEP 4: Business Details */}
+            {/* STEP 4: Location & Service Coverage */}
             {currentStep === 4 && (
               <div className="space-y-3">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  4. Experience, Hours & Rates
+                  4. Location & Service Coverage
+                </div>
+
+                {businessType === 'online' ? (
+                  /* Online Business: Region Coverage & Base HQ */
+                  <div className="space-y-3">
+                    <div className="p-3.5 bg-purple-50 dark:bg-purple-950/40 rounded-xl border border-purple-200 dark:border-purple-800 text-xs text-purple-900 dark:text-purple-200 space-y-1">
+                      <div className="font-bold flex items-center gap-1.5">
+                        <Check className="w-4 h-4 text-purple-600" />
+                        <span>No Physical Street Address Required</span>
+                      </div>
+                      <p className="text-[11px] text-purple-700 dark:text-purple-300">
+                        Your public business profile will not display any street address or map pin. Customers connect directly via website, WhatsApp, call, or online enquiry.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Gujarat Business Base City (HQ / Registration Base)
+                      </label>
+                      <select
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
+                      >
+                        {cities.map((c) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name} ({c.gujaratiName})
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-[10px] text-slate-400">
+                        Represents where your business is founded or headquartered in Gujarat.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Supported Service / Delivery Regions *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="All Gujarat, Pan-India, Ahmedabad, Surat"
+                        value={serviceRegionsInput}
+                        onChange={(e) => setServiceRegionsInput(e.target.value)}
+                        className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                      />
+                      <div className="flex flex-wrap gap-1.5 pt-1.5">
+                        {['All Gujarat', 'Pan-India', 'Metro Cities (Ahmd, Surat, Vad)', 'Worldwide'].map((preset) => (
+                          <button
+                            type="button"
+                            key={preset}
+                            onClick={() => {
+                              if (!serviceRegionsInput.includes(preset)) {
+                                setServiceRegionsInput(prev => prev ? `${prev}, ${preset}` : preset);
+                              }
+                            }}
+                            className="text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700"
+                          >
+                            + {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Physical / Hybrid Business Location */
+                  <div className="space-y-3">
+                    <div className="p-3 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-xs text-sky-800 dark:text-sky-300">
+                      State: <strong>Gujarat, India</strong> · Visitable Business Premises
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                          Gujarat City *
+                        </label>
+                        <select
+                          value={city}
+                          onChange={(e) => {
+                            setCity(e.target.value);
+                            const c = cities.find((ci) => ci.name === e.target.value);
+                            if (c && c.areas.length > 0) {
+                              setArea(c.areas[0]);
+                            }
+                          }}
+                          className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
+                        >
+                          {cities.map((c) => (
+                            <option key={c.id} value={c.name}>
+                              {c.name} ({c.gujaratiName})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                          Area / Locality in {city} *
+                        </label>
+                        <select
+                          value={area}
+                          onChange={(e) => setArea(e.target.value)}
+                          className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
+                        >
+                          {currentCityObj.areas.map((a) => (
+                            <option key={a} value={a}>
+                              {a}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Shop / Office Street Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Shop 12, Ground Floor, Complex Name, Main Road"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Gujarat Pincode (6 Digits) *
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        required
+                        placeholder="380015"
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value)}
+                        className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    {/* Public Address Visibility Toggle */}
+                    <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showPublicAddress}
+                        onChange={(e) => setShowPublicAddress(e.target.checked)}
+                        className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
+                      />
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        Display full street address and map route on public profile
+                      </span>
+                    </label>
+
+                    {businessType === 'hybrid' && (
+                      <div className="pt-2">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                          Online Service / Delivery Regions
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Surat City Doorstep, Gujarat Courier Delivery"
+                          value={serviceRegionsInput}
+                          onChange={(e) => setServiceRegionsInput(e.target.value)}
+                          className="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STEP 5: Business Details */}
+            {currentStep === 5 && (
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  5. Experience, Hours & Rates
                 </div>
 
                 <div>
@@ -481,7 +826,7 @@ export const VendorRegistrationModal: React.FC = () => {
                   <textarea
                     rows={3}
                     required
-                    placeholder="Describe your specialization, warranty policy, customer response time..."
+                    placeholder="Describe your specialization, warranty policy, customer response time, delivery terms..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
@@ -543,30 +888,32 @@ export const VendorRegistrationModal: React.FC = () => {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 pt-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={serviceAtCustomerLocation}
-                    onChange={(e) => setServiceAtCustomerLocation(e.target.checked)}
-                    className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
-                  />
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                    Provide doorstep service at customer residence / office
-                  </span>
-                </label>
+                {businessType !== 'online' && (
+                  <label className="flex items-center gap-2 pt-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={serviceAtCustomerLocation}
+                      onChange={(e) => setServiceAtCustomerLocation(e.target.checked)}
+                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
+                    />
+                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                      Provide doorstep service at customer residence / office
+                    </span>
+                  </label>
+                )}
               </div>
             )}
 
-            {/* STEP 5: Media & Photos */}
-            {currentStep === 5 && (
+            {/* STEP 6: Media, Photos & Confirmation */}
+            {currentStep === 6 && (
               <div className="space-y-3.5">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  5. Business Media, Banner, Snaps & Live Video
+                  6. Photos, Banner & Verification Summary
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Full Header Banner Photo URL *
+                    Official Header Banner Photo URL *
                   </label>
                   <input
                     type="url"
@@ -575,14 +922,11 @@ export const VendorRegistrationModal: React.FC = () => {
                     onChange={(e) => setBannerUrl(e.target.value)}
                     className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                   />
-                  <span className="text-[10px] text-slate-400">
-                    Displays edge-to-edge as your official shop/service header banner.
-                  </span>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Business Logo / Avatar Photo URL *
+                    Business Logo / Brand Icon URL *
                   </label>
                   <input
                     type="url"
@@ -592,85 +936,38 @@ export const VendorRegistrationModal: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Current Business Snaps / Work Site Photos (Comma-separated URLs)
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="https://...photo1.jpg, https://...photo2.jpg"
-                    value={currentSnapsInput}
-                    onChange={(e) => setCurrentSnapsInput(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                  <span className="text-[10px] text-slate-400">
-                    Photos of your ongoing repair work, service equipment, or local team in Gujarat.
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Very Short Video Clip of Live Business (MP4 / WebM / Reel URL)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://assets.mixkit.co/videos/...mp4"
-                    value={liveVideoUrl}
-                    onChange={(e) => setLiveVideoUrl(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                  <span className="text-[10px] text-slate-400">
-                    A 5-15 second work clip for customers to see you in action.
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <img
-                    src={bannerUrl || logoUrl}
-                    alt="Preview"
-                    className="w-20 h-14 rounded-xl object-cover border border-slate-200"
-                  />
-                  <div className="text-xs text-slate-500">
-                    Your banner, work snaps, and live business video reel will be showcased prominently on your verified profile.
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 6: Verification Confirmation */}
-            {currentStep === 6 && (
-              <div className="space-y-3 text-center py-4">
-                <div className="w-12 h-12 bg-sky-100 dark:bg-sky-950 text-sky-600 rounded-full flex items-center justify-center mx-auto">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-
-                <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                  Ready to Submit for Gujarat Verification
-                </h4>
-
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  By submitting, you certify that <strong>{businessName}</strong> operates within {city}, Gujarat, and holds necessary electrical/technical licenses.
-                </p>
-
+                {/* Summary Card */}
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl text-left text-xs space-y-1.5 border border-slate-100 dark:border-slate-800">
+                  <div className="font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1 mb-1">
+                    Registration Summary
+                  </div>
                   <div>
                     <span className="text-slate-400">Business:</span>{' '}
                     <strong className="text-slate-800 dark:text-slate-200">{businessName}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400">Category:</span>{' '}
-                    <span className="text-slate-700 dark:text-slate-300">{selectedCatObj.name}</span>
+                    <span className="text-slate-400">Operating Model:</span>{' '}
+                    <span className="uppercase font-bold text-sky-600 dark:text-sky-400">{businessType}</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400">Location:</span>{' '}
-                    <span className="text-slate-700 dark:text-slate-300">
-                      {area}, {city}, Gujarat
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Direct Phone:</span>{' '}
-                    <span className="text-slate-700 dark:text-slate-300">{phone}</span>
-                  </div>
+                  {businessType === 'online' ? (
+                    <div>
+                      <span className="text-slate-400">Service Coverage:</span>{' '}
+                      <span className="text-slate-700 dark:text-slate-300">{serviceRegionsInput}</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-slate-400">Location:</span>{' '}
+                      <span className="text-slate-700 dark:text-slate-300">
+                        {address}, {area}, {city}
+                      </span>
+                    </div>
+                  )}
+                  {websiteUrl && (
+                    <div>
+                      <span className="text-slate-400">Website:</span>{' '}
+                      <span className="text-sky-600 truncate">{websiteUrl}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

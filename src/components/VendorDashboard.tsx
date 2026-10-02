@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   TrendingUp,
   Phone,
@@ -33,7 +33,16 @@ import {
   Check,
   Maximize2,
   Mail,
-  RefreshCw
+  RefreshCw,
+  Globe,
+  Building2,
+  Store,
+  SlidersHorizontal,
+  ShieldCheck,
+  MapPin,
+  Lock,
+  Smartphone,
+  LogOut
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -60,13 +69,22 @@ export const VendorDashboard: React.FC = () => {
     setSelectedVendorForProfile,
     setIsRegistrationModalOpen,
     registerVendor,
-    updateVendorMedia
+    updateVendorMedia,
+    updateVendorProfile,
+    logoutVendor,
+    vendorSession
   } = useApp();
 
   const [selectedVendorId, setSelectedVendorId] = useState<string>(
-    vendors[0]?.id || ''
+    vendorSession?.vendorId || vendors[0]?.id || ''
   );
-  const [activeTab, setActiveTab] = useState<'analytics' | 'leads' | 'media' | 'qr'>('analytics');
+
+  useEffect(() => {
+    if (vendorSession?.vendorId) {
+      setSelectedVendorId(vendorSession.vendorId);
+    }
+  }, [vendorSession?.vendorId]);
+  const [activeTab, setActiveTab] = useState<'analytics' | 'leads' | 'media' | 'qr' | 'business-model'>('analytics');
   const [metricFilter, setMetricFilter] = useState<'all' | 'views' | 'calls' | 'whatsapp'>('all');
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [timeRange, setTimeRange] = useState<'6m' | '7d'>('6m');
@@ -79,6 +97,22 @@ export const VendorDashboard: React.FC = () => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const dashboardVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Business Operating Type & Channel management state
+  const [profileBusinessType, setProfileBusinessType] = useState<'physical' | 'online' | 'hybrid'>('physical');
+  const [profileWebsiteUrl, setProfileWebsiteUrl] = useState('');
+  const [profileAppStoreUrl, setProfileAppStoreUrl] = useState('');
+  const [profilePrimaryChannel, setProfilePrimaryChannel] = useState<'website' | 'whatsapp' | 'email' | 'app'>('website');
+  const [profileEmail, setProfileEmail] = useState('');
+  const [profileWhatsapp, setProfileWhatsapp] = useState('');
+  const [profileServiceRegions, setProfileServiceRegions] = useState('All Gujarat, Pan-India');
+  const [profileAddress, setProfileAddress] = useState('');
+  const [profileArea, setProfileArea] = useState('');
+  const [profileCity, setProfileCity] = useState('');
+  const [profilePincode, setProfilePincode] = useState('');
+  const [profileShowPublicAddress, setProfileShowPublicAddress] = useState(true);
+  const [profileSavedMsg, setProfileSavedMsg] = useState<string | null>(null);
+  const [profileErrorMsg, setProfileErrorMsg] = useState<string | null>(null);
 
   // If no vendors exist in directory
   if (vendors.length === 0) {
@@ -114,6 +148,74 @@ export const VendorDashboard: React.FC = () => {
 
   const vendor = vendors.find((v) => v.id === selectedVendorId) || vendors[0];
   const vendorLeads = leads.filter((l) => l.vendorId === vendor.id);
+
+  // Synchronize profile settings form state when vendor changes
+  useEffect(() => {
+    if (vendor) {
+      setProfileBusinessType(vendor.businessType || 'physical');
+      setProfileWebsiteUrl(vendor.websiteUrl || '');
+      setProfileAppStoreUrl(vendor.appStoreUrl || '');
+      setProfilePrimaryChannel(vendor.primaryOnlineChannel || 'website');
+      setProfileEmail(vendor.email || '');
+      setProfileWhatsapp(vendor.whatsapp || '');
+      setProfileServiceRegions(
+        vendor.serviceRegions && vendor.serviceRegions.length > 0 ? vendor.serviceRegions.join(', ') : 'All Gujarat, Pan-India'
+      );
+      setProfileAddress(vendor.address || '');
+      setProfileArea(vendor.area || '');
+      setProfileCity(vendor.city || '');
+      setProfilePincode(vendor.pincode || '');
+      setProfileShowPublicAddress(vendor.showPublicAddress !== false);
+      setProfileSavedMsg(null);
+      setProfileErrorMsg(null);
+    }
+  }, [vendor.id]);
+
+  const handleSaveProfileSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSavedMsg(null);
+    setProfileErrorMsg(null);
+
+    // Validation
+    if (profileBusinessType === 'physical') {
+      if (!profileAddress.trim()) {
+        setProfileErrorMsg('Physical business requires a valid street address.');
+        return;
+      }
+    } else if (profileBusinessType === 'online') {
+      if (!profileWebsiteUrl.trim() && !profileEmail.trim() && !profileWhatsapp.trim()) {
+        setProfileErrorMsg('Online business requires at least one digital channel (website, business email, or WhatsApp Business).');
+        return;
+      }
+    }
+
+    const regions = profileServiceRegions
+      .split(',')
+      .map((r) => r.trim())
+      .filter(Boolean);
+
+    const res = updateVendorProfile(vendor.id, {
+      businessType: profileBusinessType,
+      websiteUrl: profileWebsiteUrl.trim() || undefined,
+      appStoreUrl: profileAppStoreUrl.trim() || undefined,
+      primaryOnlineChannel: profileBusinessType !== 'physical' ? profilePrimaryChannel : undefined,
+      email: profileEmail.trim() || undefined,
+      whatsapp: profileWhatsapp.replace(/\D/g, ''),
+      serviceRegions: profileBusinessType !== 'physical' ? (regions.length > 0 ? regions : ['All Gujarat', 'Pan-India']) : ['Gujarat'],
+      showPublicAddress: profileBusinessType === 'online' ? false : profileShowPublicAddress,
+      address: profileBusinessType === 'online' ? undefined : (profileAddress.trim() || undefined),
+      area: profileBusinessType === 'online' ? undefined : (profileArea.trim() || undefined),
+      city: profileCity.trim() || vendor.city,
+      pincode: profileBusinessType === 'online' ? undefined : (profilePincode.trim() || undefined),
+    });
+
+    if (res.success) {
+      setProfileSavedMsg('Business operating model and contact channels saved successfully.');
+      setTimeout(() => setProfileSavedMsg(null), 5000);
+    } else {
+      setProfileErrorMsg(res.error || 'Failed to update business settings.');
+    }
+  };
 
   // Profile completion calculation
   let completionScore = 50;
@@ -352,6 +454,15 @@ export const VendorDashboard: React.FC = () => {
             <span>Public Profile</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </button>
+
+          <button
+            onClick={logoutVendor}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/60 dark:hover:text-rose-300 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Logout of Vendor Hub"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
+          </button>
         </div>
       </div>
 
@@ -485,6 +596,18 @@ export const VendorDashboard: React.FC = () => {
           }`}
         >
           Unique QR Code Hub
+        </button>
+
+        <button
+          onClick={() => setActiveTab('business-model')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            activeTab === 'business-model'
+              ? 'bg-slate-900 text-white dark:bg-sky-600'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Operating Model & Links</span>
         </button>
       </div>
 
@@ -1344,6 +1467,486 @@ export const VendorDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB 5: Business Operating Model, Online Channels & Address Configuration */}
+      {activeTab === 'business-model' && (
+        <form onSubmit={handleSaveProfileSettings} className="space-y-6">
+          {/* Header Card */}
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <SlidersHorizontal className="w-5 h-5 text-sky-600" />
+                  <span>Business Operating Model & Digital Channels</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Configure whether you operate as a Physical premise, Online digital service, or Hybrid business. Manage website links, service regions, and public location visibility.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 self-start sm:self-auto shrink-0"
+              >
+                <Check className="w-4 h-4" />
+                <span>Save Operating Changes</span>
+              </button>
+            </div>
+
+            {/* Error / Success Feedback */}
+            {profileSavedMsg && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 animate-fade-in">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{profileSavedMsg}</span>
+              </div>
+            )}
+            {profileErrorMsg && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800 rounded-2xl flex items-center gap-2 text-xs font-bold text-rose-800 dark:text-rose-200 animate-fade-in">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{profileErrorMsg}</span>
+              </div>
+            )}
+
+            {/* Operating Model Selector */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block uppercase tracking-wider">
+                Select Business Operating Model *
+              </label>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Physical Business */}
+                <div
+                  onClick={() => setProfileBusinessType('physical')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    profileBusinessType === 'physical'
+                      ? 'bg-sky-50/80 dark:bg-sky-950/40 border-sky-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-2 rounded-xl ${
+                        profileBusinessType === 'physical'
+                          ? 'bg-sky-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}>
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      {profileBusinessType === 'physical' && <CheckCircle2 className="w-4 h-4 text-sky-600" />}
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">
+                      Physical Business
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      Shop, restaurant, mall, clinic, salon or workshop that customers can visit in person.
+                    </p>
+                  </div>
+                  <div className="mt-3 text-[10px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-100/70 dark:bg-sky-900/40 px-2 py-1 rounded-md">
+                    Street address required · Public visibility configurable
+                  </div>
+                </div>
+
+                {/* Online Business */}
+                <div
+                  onClick={() => setProfileBusinessType('online')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    profileBusinessType === 'online'
+                      ? 'bg-purple-50/80 dark:bg-purple-950/40 border-purple-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-2 rounded-xl ${
+                        profileBusinessType === 'online'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}>
+                        <Globe className="w-4 h-4" />
+                      </div>
+                      {profileBusinessType === 'online' && <CheckCircle2 className="w-4 h-4 text-purple-600" />}
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">
+                      Online Business
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      E-commerce store, website/app developer, AI SaaS, digital agency or remote consultant.
+                    </p>
+                  </div>
+                  <div className="mt-3 text-[10px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-100/70 dark:bg-purple-900/40 px-2 py-1 rounded-md">
+                    No physical address required · Map hidden · QR code active
+                  </div>
+                </div>
+
+                {/* Hybrid Business */}
+                <div
+                  onClick={() => setProfileBusinessType('hybrid')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    profileBusinessType === 'hybrid'
+                      ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-2 rounded-xl ${
+                        profileBusinessType === 'hybrid'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}>
+                        <Store className="w-4 h-4" />
+                      </div>
+                      {profileBusinessType === 'hybrid' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">
+                      Hybrid Business
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      Retailers with in-store & shipping, restaurants with dine-in & delivery, or on-site & remote work.
+                    </p>
+                  </div>
+                  <div className="mt-3 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-900/40 px-2 py-1 rounded-md">
+                    Physical location + online store/app configured independently
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary Channel for Online / Hybrid */}
+            {profileBusinessType !== 'physical' && (
+              <div className="pt-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-2">
+                  Primary Customer Action Channel *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'website', label: 'Business Website', icon: Globe },
+                    { id: 'whatsapp', label: 'WhatsApp Biz', icon: MessageCircle },
+                    { id: 'email', label: 'Business Email', icon: Mail },
+                    { id: 'app', label: 'App / Platform', icon: Smartphone }
+                  ].map((ch) => {
+                    const Icon = ch.icon;
+                    return (
+                      <button
+                        type="button"
+                        key={ch.id}
+                        onClick={() => setProfilePrimaryChannel(ch.id as any)}
+                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                          profilePrimaryChannel === ch.id
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{ch.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Online Channels & Digital Destinations */}
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Globe className="w-4 h-4 text-purple-600" />
+              <span>Digital Destinations & Contact Routes</span>
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Business Website / Online Store URL
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={profileWebsiteUrl}
+                    onChange={(e) => setProfileWebsiteUrl(e.target.value)}
+                    placeholder="https://example.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                  />
+                  {profileWebsiteUrl && (
+                    <a
+                      href={profileWebsiteUrl.startsWith('http') ? profileWebsiteUrl : `https://${profileWebsiteUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-sky-600"
+                      title="Test link (opens safely in new tab)"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  e.g., Shopify store, company website, digital portfolio.
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Mobile App / Platform URL (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={profileAppStoreUrl}
+                  onChange={(e) => setProfileAppStoreUrl(e.target.value)}
+                  placeholder="https://play.google.com/store/apps/details?id=..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Link to Google Play, iOS App Store, or web app portal.
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Business Email
+                </label>
+                <input
+                  type="email"
+                  value={profileEmail}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  placeholder="contact@mycompany.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  For customer enquiries and transactional lead notifications.
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  WhatsApp Business Number
+                </label>
+                <input
+                  type="tel"
+                  value={profileWhatsapp}
+                  onChange={(e) => setProfileWhatsapp(e.target.value)}
+                  placeholder="9876543210"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  10-digit number for 1-click WhatsApp customer chat.
+                </span>
+              </div>
+            </div>
+
+            {/* Service Delivery Regions */}
+            <div className="pt-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Customer Service & Delivery Regions (Comma separated)
+              </label>
+              <input
+                type="text"
+                value={profileServiceRegions}
+                onChange={(e) => setProfileServiceRegions(e.target.value)}
+                placeholder="Ahmedabad, Surat, Vadodara, All Gujarat, Pan-India"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Specifies where your customers are located. A Gujarat-based company can serve Pan-India or specific cities without needing a physical office in each.
+              </span>
+            </div>
+          </div>
+
+          {/* Location Configuration & Privacy */}
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-sky-600" />
+              <span>Location Settings & Visibility</span>
+            </h4>
+
+            {profileBusinessType === 'online' ? (
+              <div className="p-4 bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-purple-900 dark:text-purple-200">
+                  <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                  <span>Online Business Mode Active — No Physical Address Required</span>
+                </div>
+                <p className="text-xs text-purple-800/80 dark:text-purple-300 leading-relaxed">
+                  Your business base is registered in <span className="font-bold">{vendor.city}, Gujarat</span>. Street addresses and map coordinates are safely omitted. Map pins and directions buttons are hidden on your public profile, while your website link, WhatsApp, enquiry form, and permanent QR code are fully functional.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Street Address {profileBusinessType === 'physical' && '*'}
+                    </label>
+                    <input
+                      type="text"
+                      value={profileAddress}
+                      onChange={(e) => setProfileAddress(e.target.value)}
+                      placeholder="Shop 104, Galaxy Commercial Complex"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Area / Neighborhood
+                    </label>
+                    <input
+                      type="text"
+                      value={profileArea}
+                      onChange={(e) => setProfileArea(e.target.value)}
+                      placeholder="Satellite / Alkapuri / Nanpura"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Gujarat City
+                    </label>
+                    <input
+                      type="text"
+                      value={profileCity}
+                      onChange={(e) => setProfileCity(e.target.value)}
+                      placeholder="Ahmedabad"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Pincode
+                    </label>
+                    <input
+                      type="text"
+                      value={profilePincode}
+                      onChange={(e) => setProfilePincode(e.target.value)}
+                      placeholder="380015"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Public Address Visibility Toggle */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="togglePublicAddress"
+                    checked={profileShowPublicAddress}
+                    onChange={(e) => setProfileShowPublicAddress(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300 cursor-pointer"
+                  />
+                  <label htmlFor="togglePublicAddress" className="flex-1 cursor-pointer">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                      Display full street address on public profile & interactive map
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                      When unchecked, your exact address is kept private in VBV verification records and customers only see your City & Area.
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Trust & Security Multi-Tier Verification Status */}
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Verification & Trust Standards</span>
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Contact details, business identity, and physical location are verified separately by the VBV Trust team.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Phone & Contact Verification */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">
+                  1. Contact Ownership
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Phone Verified</span>
+                </div>
+                {vendor.email && (
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                    <Mail className="w-3 h-3 text-sky-500" />
+                    <span>Email on file: {vendor.email}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Business Identity */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">
+                  2. Business Identity
+                </div>
+                <div className={`flex items-center gap-1.5 text-xs font-bold ${
+                  vendor.isIdentityVerified || vendor.isDocsVerified
+                    ? 'text-violet-600 dark:text-violet-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                }`}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{vendor.isIdentityVerified || vendor.isDocsVerified ? 'ID / GST Verified' : 'Under Review'}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Official Trade / GST check
+                </div>
+              </div>
+
+              {/* Physical Location */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">
+                  3. Premises Verification
+                </div>
+                {profileBusinessType === 'online' ? (
+                  <div>
+                    <div className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                      <Globe className="w-4 h-4" />
+                      <span>Not Applicable</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      Online-only business model
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className={`flex items-center gap-1.5 text-xs font-bold ${
+                      vendor.isLocationVerified
+                        ? 'text-sky-600 dark:text-sky-400'
+                        : 'text-slate-500'
+                    }`}>
+                      <MapPin className="w-4 h-4" />
+                      <span>{vendor.isLocationVerified ? 'Premises Verified' : 'Unverified Address'}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      Physical visit or geocoding
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl text-[11px] text-slate-500 leading-relaxed">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Security Rule:</span> A "Verified Business" badge is not awarded merely because an email is confirmed or website exists. Distinct badges for Contact, Identity, and Location prevent misleading claims in the directory.
+            </div>
+          </div>
+
+          {/* Bottom Save Bar */}
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-slate-500">
+              Changes reflect immediately on your public profile and customer search.
+            </span>
+            <button
+              type="submit"
+              className="px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>Save Operating Changes</span>
+            </button>
+          </div>
+        </form>
       )}
     </div>
   );

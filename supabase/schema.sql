@@ -88,6 +88,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- 4. VENDORS MASTER
 DO $$ BEGIN
+    CREATE TYPE business_type_enum AS ENUM ('physical', 'online', 'hybrid');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
     CREATE TYPE verification_status_enum AS ENUM ('pending', 'verified', 'rejected', 'suspended');
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -98,20 +104,28 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     owner_profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     business_name VARCHAR(200) NOT NULL,
     owner_name VARCHAR(150) NOT NULL,
+    business_type business_type_enum NOT NULL DEFAULT 'physical',
     phone VARCHAR(20) NOT NULL,
     whatsapp VARCHAR(20) NOT NULL,
     email VARCHAR(255),
+    business_email VARCHAR(255),
+    website_url TEXT,
+    app_store_url TEXT,
+    primary_online_channel VARCHAR(50) DEFAULT 'website',
+    service_region_mode VARCHAR(30) NOT NULL DEFAULT 'local' CHECK (service_region_mode IN ('local', 'gujarat', 'india', 'international')),
+    service_regions TEXT[] DEFAULT ARRAY['Gujarat']::TEXT[],
+    show_public_address BOOLEAN NOT NULL DEFAULT true,
     
     category_id VARCHAR(50) NOT NULL REFERENCES public.categories(id),
     subcategory_id VARCHAR(80) NOT NULL REFERENCES public.subcategories(id),
     
-    state_id VARCHAR(50) NOT NULL REFERENCES public.states(id),
-    city_id VARCHAR(50) NOT NULL REFERENCES public.cities(id),
+    state_id VARCHAR(50) DEFAULT 'gujarat' REFERENCES public.states(id),
+    city_id VARCHAR(50) REFERENCES public.cities(id),
     area_id VARCHAR(80) REFERENCES public.areas(id),
-    address TEXT NOT NULL,
-    pincode VARCHAR(10) NOT NULL,
-    lat NUMERIC(9, 6) NOT NULL,
-    lng NUMERIC(9, 6) NOT NULL,
+    address TEXT,
+    pincode VARCHAR(10),
+    lat NUMERIC(9, 6),
+    lng NUMERIC(9, 6),
 
     description TEXT NOT NULL,
     experience_years INT NOT NULL DEFAULT 1,
@@ -122,8 +136,10 @@ CREATE TABLE IF NOT EXISTS public.vendors (
 
     verification_status verification_status_enum NOT NULL DEFAULT 'pending',
     is_phone_verified BOOLEAN NOT NULL DEFAULT false,
+    is_email_verified BOOLEAN NOT NULL DEFAULT false,
     is_location_verified BOOLEAN NOT NULL DEFAULT false,
     is_docs_verified BOOLEAN NOT NULL DEFAULT false,
+    is_identity_verified BOOLEAN NOT NULL DEFAULT false,
     is_featured BOOLEAN NOT NULL DEFAULT false,
 
     rating NUMERIC(3, 2) NOT NULL DEFAULT 5.00,
@@ -138,7 +154,13 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     qr_token VARCHAR(60) NOT NULL UNIQUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT check_vendor_operating_model CHECK (
+        (business_type = 'physical' AND (address IS NOT NULL OR city_id IS NOT NULL)) OR
+        (business_type = 'online' AND (website_url IS NOT NULL OR whatsapp IS NOT NULL OR email IS NOT NULL)) OR
+        (business_type = 'hybrid' AND (website_url IS NOT NULL OR address IS NOT NULL OR phone IS NOT NULL))
+    )
 );
 
 -- 5. REVIEWS

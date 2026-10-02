@@ -11,7 +11,10 @@ import {
   Navigation,
   Check,
   X,
-  Filter
+  Filter,
+  Globe,
+  Building2,
+  Store
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTranslation } from '../utils/translations';
@@ -40,9 +43,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRatingMenuOpen, setIsRatingMenuOpen] = useState(false);
   const [isDistanceMenuOpen, setIsDistanceMenuOpen] = useState(false);
+  const [isBusinessTypeMenuOpen, setIsBusinessTypeMenuOpen] = useState(false);
 
   const ratingMenuRef = useRef<HTMLDivElement>(null);
   const distanceMenuRef = useRef<HTMLDivElement>(null);
+  const businessTypeMenuRef = useRef<HTMLDivElement>(null);
 
   // Close menus on outside click
   useEffect(() => {
@@ -52,6 +57,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       }
       if (distanceMenuRef.current && !distanceMenuRef.current.contains(event.target as Node)) {
         setIsDistanceMenuOpen(false);
+      }
+      if (businessTypeMenuRef.current && !businessTypeMenuRef.current.contains(event.target as Node)) {
+        setIsBusinessTypeMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -68,6 +76,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   if (filters.maxDistanceKm > 0) activeFilterCount++;
   if (filters.subcategory) activeFilterCount++;
   if (filters.category) activeFilterCount++;
+  if (filters.businessType && filters.businessType !== 'all') activeFilterCount++;
 
   const ratingOptions = [
     { label: 'Any Rating', value: 0 },
@@ -130,7 +139,87 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <span>Available Now</span>
             </button>
 
-            {/* 3. Min Rating Dynamic Dropdown */}
+            {/* 3. Operating Model Dynamic Dropdown */}
+            <div className="relative shrink-0" ref={businessTypeMenuRef}>
+              <button
+                onClick={() => {
+                  setIsBusinessTypeMenuOpen(!isBusinessTypeMenuOpen);
+                  setIsRatingMenuOpen(false);
+                  setIsDistanceMenuOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  filters.businessType && filters.businessType !== 'all'
+                    ? filters.businessType === 'online'
+                      ? 'bg-purple-600 text-white shadow-xs scale-[1.02]'
+                      : filters.businessType === 'hybrid'
+                      ? 'bg-indigo-600 text-white shadow-xs scale-[1.02]'
+                      : 'bg-sky-700 text-white shadow-xs scale-[1.02]'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {filters.businessType === 'online' ? (
+                  <Globe className="w-3.5 h-3.5 text-purple-200" />
+                ) : filters.businessType === 'hybrid' ? (
+                  <Store className="w-3.5 h-3.5 text-indigo-200" />
+                ) : filters.businessType === 'physical' ? (
+                  <Building2 className="w-3.5 h-3.5 text-sky-200" />
+                ) : (
+                  <Store className="w-3.5 h-3.5 text-slate-500" />
+                )}
+                <span>
+                  {filters.businessType === 'online'
+                    ? 'Online Only'
+                    : filters.businessType === 'hybrid'
+                    ? 'Hybrid Model'
+                    : filters.businessType === 'physical'
+                    ? 'Shops / Offices'
+                    : 'All Operating Types'}
+                </span>
+                <ChevronDown className="w-3 h-3 ml-0.5 opacity-70" />
+              </button>
+
+              {isBusinessTypeMenuOpen && (
+                <div className="absolute top-full left-0 mt-1.5 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-1.5 z-40 animate-fade-in text-xs">
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Business Operating Model
+                  </div>
+                  {[
+                    { label: 'All Models', value: 'all', icon: Store, desc: 'Physical, online & hybrid' },
+                    { label: 'Physical Shops / Offices', value: 'physical', icon: Building2, desc: 'Visitable premises only' },
+                    { label: 'Online Businesses', value: 'online', icon: Globe, desc: 'No physical street address' },
+                    { label: 'Hybrid Businesses', value: 'hybrid', icon: Store, desc: 'In-store + online delivery' }
+                  ].map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected = (filters.businessType || 'all') === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          setFilters((prev) => ({ ...prev, businessType: opt.value as any }));
+                          setIsBusinessTypeMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <div>
+                            <div>{opt.label}</div>
+                            <div className="text-[10px] text-slate-400 font-normal">{opt.desc}</div>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-sky-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 4. Min Rating Dynamic Dropdown */}
             <div className="relative shrink-0" ref={ratingMenuRef}>
               <button
                 onClick={() => {
@@ -391,7 +480,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-sky-500" />
-                <span>Verification & Availability Status</span>
+                <span>Verification & Availability</span>
               </label>
               <div className="flex items-center gap-2">
                 <button
@@ -419,8 +508,47 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   }`}
                 >
                   <ShieldCheck className="w-3 h-3" />
-                  <span>Aadhaar/GST Verified</span>
+                  <span>Verified Only</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Operating Model Selector in Expanded Tray */}
+            <div className="space-y-1.5 md:col-span-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Store className="w-3.5 h-3.5 text-purple-500" />
+                <span>Business Operating Model</span>
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { label: 'All Models', value: 'all', icon: Store },
+                  { label: 'Physical Shops & Offices', value: 'physical', icon: Building2 },
+                  { label: 'Online Businesses (No Street Address)', value: 'online', icon: Globe },
+                  { label: 'Hybrid Businesses (Store + Online)', value: 'hybrid', icon: Store }
+                ].map((opt) => {
+                  const Icon = opt.icon;
+                  const isSelected = (filters.businessType || 'all') === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() =>
+                        setFilters((prev) => ({ ...prev, businessType: opt.value as any }))
+                      }
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        isSelected
+                          ? opt.value === 'online'
+                            ? 'bg-purple-600 text-white shadow-xs'
+                            : opt.value === 'hybrid'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-sky-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

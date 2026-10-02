@@ -8,7 +8,10 @@ export const BottomNav: React.FC = () => {
     setActiveTab,
     setIsQRScannerOpen,
     role,
-    favorites
+    favorites,
+    isAdminAuthenticated,
+    isVendorAuthenticated,
+    requestRoleChange
   } = useApp();
 
   return (
@@ -72,7 +75,17 @@ export const BottomNav: React.FC = () => {
 
         {/* Role Portal / Dashboard */}
         <button
-          onClick={() => setActiveTab('portal')}
+          onClick={() => {
+            if (role === 'admin' && !isAdminAuthenticated) {
+              requestRoleChange('admin');
+              return;
+            }
+            if (role === 'vendor' && !isVendorAuthenticated) {
+              requestRoleChange('vendor');
+              return;
+            }
+            setActiveTab('portal');
+          }}
           className={`flex flex-col items-center justify-center min-h-[44px] min-w-[44px] transition-colors ${
             activeTab === 'portal'
               ? 'text-sky-600 dark:text-sky-400 font-bold'

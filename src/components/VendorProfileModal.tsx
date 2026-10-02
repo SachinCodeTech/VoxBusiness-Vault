@@ -31,7 +31,13 @@ import {
   Upload,
   Film,
   Image as ImageIcon,
-  Check
+  Check,
+  Globe,
+  Building2,
+  Store,
+  Mail,
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTranslation } from '../utils/translations';
@@ -374,8 +380,29 @@ export const VendorProfileModal: React.FC = () => {
             {/* Banner Top Badges */}
             <div className="absolute top-3 left-3 flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-900/85 backdrop-blur-md text-white px-2.5 py-1 rounded-lg border border-white/20 shadow-md">
-                Official Business Banner
+                Official Business
               </span>
+
+              {/* Operating Model Label */}
+              {vendor.businessType === 'online' && (
+                <span className="text-[10px] font-bold text-purple-200 bg-purple-950/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-purple-500/40 flex items-center gap-1 shadow-md">
+                  <Globe className="w-3 h-3 text-purple-400" />
+                  Online Business
+                </span>
+              )}
+              {vendor.businessType === 'hybrid' && (
+                <span className="text-[10px] font-bold text-indigo-200 bg-indigo-950/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-indigo-500/40 flex items-center gap-1 shadow-md">
+                  <Store className="w-3 h-3 text-indigo-400" />
+                  Hybrid Business
+                </span>
+              )}
+              {vendor.businessType === 'physical' && (
+                <span className="text-[10px] font-bold text-sky-200 bg-sky-950/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-sky-500/40 flex items-center gap-1 shadow-md">
+                  <Building2 className="w-3 h-3 text-sky-400" />
+                  Physical Shop / Office
+                </span>
+              )}
+
               <span className="text-[10px] font-bold uppercase tracking-wider bg-sky-600/90 backdrop-blur-md text-white px-2 py-1 rounded-lg border border-sky-400/30 flex items-center gap-1 shadow-md">
                 <Shield className="w-3 h-3" />
                 Gujarat Registered
@@ -404,7 +431,9 @@ export const VendorProfileModal: React.FC = () => {
             <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3 text-white">
               <div>
                 <span className="text-[10px] font-semibold tracking-wider uppercase text-sky-300">
-                  {vendor.city} · {vendor.area}
+                  {vendor.businessType === 'online'
+                    ? `Gujarat Base: ${vendor.city} · Serving All Gujarat & Pan-India`
+                    : `${vendor.city}${vendor.area ? ` · ${vendor.area}` : ''}${vendor.businessType === 'hybrid' ? ' (Store + Online)' : ''}`}
                 </span>
                 <h2 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md leading-tight line-clamp-1">
                   {vendor.businessName}
@@ -470,15 +499,27 @@ export const VendorProfileModal: React.FC = () => {
               </div>
 
               {/* Verified Trust Badges */}
-              <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+              <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-center">
                 {vendor.isPhoneVerified && (
-                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center gap-1" title="Phone number ownership confirmed">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     Phone Verified
                   </span>
                 )}
-                {vendor.isLocationVerified && (
-                  <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-1 rounded-xl border border-sky-200 dark:border-sky-800 flex items-center gap-1">
+                {(vendor.isEmailVerified || vendor.email) && (
+                  <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-xl border border-blue-200 dark:border-blue-800 flex items-center gap-1" title="Official business email verified">
+                    <Mail className="w-3.5 h-3.5 text-blue-600" />
+                    Email Verified
+                  </span>
+                )}
+                {(vendor.isIdentityVerified || vendor.isDocsVerified) && (
+                  <span className="text-[11px] font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/60 px-2.5 py-1 rounded-xl border border-violet-200 dark:border-violet-800 flex items-center gap-1" title="Business registration documents verified">
+                    <ShieldCheck className="w-3.5 h-3.5 text-violet-600" />
+                    Identity Verified
+                  </span>
+                )}
+                {vendor.businessType !== 'online' && vendor.showPublicAddress !== false && vendor.isLocationVerified && (
+                  <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-1 rounded-xl border border-sky-200 dark:border-sky-800 flex items-center gap-1" title="Physical premises inspected and verified">
                     <MapPin className="w-3.5 h-3.5 text-sky-600" />
                     Location Verified
                   </span>
@@ -486,7 +527,7 @@ export const VendorProfileModal: React.FC = () => {
               </div>
             </div>
 
-            {/* DIRECT ACTION BUTTONS (CALL · WHATSAPP · ROUTE · QR) */}
+            {/* DIRECT ACTION BUTTONS (CALL · WHATSAPP · ROUTE/WEBSITE · QR) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
               <button
                 onClick={handleCall}
@@ -504,13 +545,54 @@ export const VendorProfileModal: React.FC = () => {
                 <span>WhatsApp</span>
               </button>
 
-              <button
-                onClick={handleDirections}
-                className="py-3 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-95"
-              >
-                <Navigation className="w-4 h-4 text-sky-600" />
-                <span>Route</span>
-              </button>
+              {/* 3rd Action: Website for Online, Route for Physical, Safe Fallback */}
+              {vendor.businessType === 'online' ? (
+                vendor.websiteUrl ? (
+                  <a
+                    href={vendor.websiteUrl.startsWith('http') ? vendor.websiteUrl : `https://${vendor.websiteUrl}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-3 px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-transform active:scale-95"
+                  >
+                    <Globe className="w-4 h-4" />
+                    <span>Visit Website</span>
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => setSelectedVendorForBooking(vendor)}
+                    className="py-3 px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-transform active:scale-95"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Enquire</span>
+                  </button>
+                )
+              ) : vendor.showPublicAddress !== false && (vendor.address || vendor.lat) ? (
+                <button
+                  onClick={handleDirections}
+                  className="py-3 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-95"
+                >
+                  <Navigation className="w-4 h-4 text-sky-600" />
+                  <span>Route</span>
+                </button>
+              ) : vendor.websiteUrl ? (
+                <a
+                  href={vendor.websiteUrl.startsWith('http') ? vendor.websiteUrl : `https://${vendor.websiteUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-3 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-95"
+                >
+                  <Globe className="w-4 h-4 text-sky-600" />
+                  <span>Website</span>
+                </a>
+              ) : (
+                <button
+                  onClick={() => setSelectedVendorForBooking(vendor)}
+                  className="py-3 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-95"
+                >
+                  <Send className="w-4 h-4 text-sky-600" />
+                  <span>Enquire</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setSelectedVendorForQR(vendor)}
@@ -671,28 +753,160 @@ export const VendorProfileModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Exact Location Card */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 shrink-0">
-                      <MapPin className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        Physical Store / Service Hub Address
+                {/* Location & Online Destination Card */}
+                {vendor.businessType === 'online' ? (
+                  <div className="p-4 bg-purple-50/70 dark:bg-purple-950/40 rounded-2xl border border-purple-200/80 dark:border-purple-800 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
+                        <Globe className="w-4 h-4" />
                       </div>
-                      <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                        {vendor.address}, {vendor.area}, {vendor.city}, Gujarat - {vendor.pincode}
-                      </div>
-                      {vendor.serviceAtCustomerLocation && (
-                        <div className="mt-1.5 text-[11px] text-sky-600 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Doorstep service available across {vendor.city}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            Online Business — Digital & Remote Services
+                          </span>
+                          <span className="text-[10px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/60 px-2 py-0.5 rounded-md">
+                            No Walk-In Counter
+                          </span>
                         </div>
-                      )}
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                          This verified business operates 100% digitally. Connect directly via their official website, online platform, WhatsApp, or request an instant quotation.
+                        </p>
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs">
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-100 dark:border-purple-900/60">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                          Gujarat Base (HQ)
+                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {vendor.city}, Gujarat
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-100 dark:border-purple-900/60">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                          Supported Service Regions
+                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {vendor.serviceRegions && vendor.serviceRegions.length > 0
+                            ? vendor.serviceRegions.join(', ')
+                            : 'All Gujarat & India'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Online Destination Links */}
+                    {(vendor.websiteUrl || vendor.appStoreUrl || vendor.email) && (
+                      <div className="pt-1 flex flex-wrap items-center gap-2">
+                        {vendor.websiteUrl && (
+                          <a
+                            href={vendor.websiteUrl.startsWith('http') ? vendor.websiteUrl : `https://${vendor.websiteUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-colors"
+                          >
+                            <Globe className="w-3.5 h-3.5" />
+                            <span>Visit Official Website</span>
+                            <ExternalLink className="w-3 h-3 ml-0.5 opacity-80" />
+                          </a>
+                        )}
+
+                        {vendor.appStoreUrl && (
+                          <a
+                            href={vendor.appStoreUrl.startsWith('http') ? vendor.appStoreUrl : `https://${vendor.appStoreUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-colors border border-white/10"
+                          >
+                            <span>Open Web/Mobile App</span>
+                            <ExternalLink className="w-3 h-3 ml-0.5 opacity-80" />
+                          </a>
+                        )}
+
+                        {vendor.email && (
+                          <a
+                            href={`mailto:${vendor.email}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-semibold text-xs hover:bg-slate-50 transition-colors"
+                          >
+                            <Mail className="w-3.5 h-3.5 text-blue-600" />
+                            <span>{vendor.email}</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  /* Physical or Hybrid Business Location & Channels */
+                  <div className="space-y-3">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 shrink-0">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {vendor.businessType === 'hybrid' ? 'Physical Premises & Storefront' : 'Physical Store / Office Address'}
+                            </span>
+                            {vendor.showPublicAddress === false && (
+                              <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md">
+                                Address Private
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                            {vendor.showPublicAddress === false ? (
+                              <span className="italic text-slate-500">
+                                Exact premises address kept private by vendor. Provided upon confirmed enquiry or appointment.
+                              </span>
+                            ) : (
+                              <span>
+                                {vendor.address ? `${vendor.address}, ` : ''}{vendor.area ? `${vendor.area}, ` : ''}{vendor.city}, Gujarat{vendor.pincode ? ` - ${vendor.pincode}` : ''}
+                              </span>
+                            )}
+                          </div>
+
+                          {vendor.serviceAtCustomerLocation && (
+                            <div className="mt-1.5 text-[11px] text-sky-600 font-semibold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Doorstep on-site service available across {vendor.city}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Online Channels Card for Hybrid Business */}
+                    {vendor.businessType === 'hybrid' && (
+                      <div className="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-2xl border border-indigo-200/80 dark:border-indigo-800 text-xs space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-indigo-900 dark:text-indigo-200">
+                          <Store className="w-4 h-4 text-indigo-600" />
+                          <span>Hybrid Channels: In-Store & Nationwide Delivery</span>
+                        </div>
+                        <div className="text-slate-600 dark:text-slate-300 text-[11px]">
+                          Supported Service & Shipping Coverage: <strong>{vendor.serviceRegions?.join(', ') || 'All Gujarat & India'}</strong>
+                        </div>
+                        {vendor.websiteUrl && (
+                          <div className="pt-1">
+                            <a
+                              href={vendor.websiteUrl.startsWith('http') ? vendor.websiteUrl : `https://${vendor.websiteUrl}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                            >
+                              <Globe className="w-3.5 h-3.5" />
+                              <span>{vendor.websiteUrl}</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

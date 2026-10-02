@@ -20,6 +20,8 @@ import { CategoriesView } from './components/CategoriesView';
 import { SavedVendorsView } from './components/SavedVendorsView';
 import { VendorDashboard } from './components/VendorDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AdminAuthModal } from './components/AdminAuthModal';
+import { VendorAuthModal } from './components/VendorAuthModal';
 import { PopularSpotsCardSection } from './components/PopularSpotsCardSection';
 import { DynamicSeoHead } from './components/DynamicSeoHead';
 import { OfflineNotice } from './components/OfflineNotice';
@@ -35,7 +37,9 @@ import {
   TrendingUp,
   SearchX,
   CreditCard,
-  QrCode
+  QrCode,
+  Lock,
+  Store
 } from 'lucide-react';
 import { getTranslation } from './utils/translations';
 
@@ -56,7 +60,12 @@ const MainContent: React.FC = () => {
     setSelectedCity,
     resetFilters,
     leads,
-    filters
+    filters,
+    isAdminAuthenticated,
+    isVendorAuthenticated,
+    requestRoleChange,
+    setIsAdminAuthModalOpen,
+    setIsVendorAuthModalOpen
   } = useApp();
 
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -236,8 +245,69 @@ const MainContent: React.FC = () => {
         {/* Tab: Portal / Dashboard */}
         {activeTab === 'portal' && (
           <>
-            {role === 'vendor' && <VendorDashboard />}
-            {role === 'admin' && <AdminDashboard />}
+            {role === 'vendor' && (
+              isVendorAuthenticated ? (
+                <VendorDashboard />
+              ) : (
+                <div className="max-w-md mx-auto px-4 py-16 text-center animate-fade-in">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-8 shadow-sm space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-950/80 border border-sky-200 dark:border-sky-800 text-sky-600 flex items-center justify-center mx-auto">
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded">
+                        Vendor Access Control
+                      </span>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-2">
+                        Vendor Hub Restricted
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        Authentication is required to access vendor analytics, manage incoming customer leads, and update business channels.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsVendorAuthModalOpen(true)}
+                      className="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                    >
+                      Login to Vendor Hub
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+
+            {role === 'admin' && (
+              isAdminAuthenticated ? (
+                <AdminDashboard />
+              ) : (
+                <div className="max-w-md mx-auto px-4 py-16 text-center animate-fade-in">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-8 shadow-sm space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-600 flex items-center justify-center mx-auto">
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded">
+                        Admin Route Security
+                      </span>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-2">
+                        Super Admin Verification Required
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        Access to the Vox Business Vault administration console is strictly protected. Please verify your administrator credentials.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAdminAuthModalOpen(true)}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Authenticate as Admin</span>
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+
             {role === 'customer' && (
               <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-left animate-fade-in">
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-3">
@@ -250,16 +320,18 @@ const MainContent: React.FC = () => {
 
                   <div className="pt-2 flex flex-wrap gap-2 text-xs">
                     <button
-                      onClick={() => setRole('vendor')}
-                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold"
+                      onClick={() => requestRoleChange('vendor')}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold flex items-center gap-1.5"
                     >
-                      Switch to Vendor Dashboard
+                      <Store className="w-3.5 h-3.5" />
+                      <span>Switch to Vendor Dashboard</span>
                     </button>
                     <button
-                      onClick={() => setRole('admin')}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl font-semibold"
+                      onClick={() => requestRoleChange('admin')}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl font-semibold flex items-center gap-1.5"
                     >
-                      Switch to Admin Console
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Switch to Admin Console</span>
                     </button>
                   </div>
                 </div>
@@ -347,6 +419,8 @@ const MainContent: React.FC = () => {
       <InfoDrawer />
       <NotificationsModal />
       <ReportModal />
+      <AdminAuthModal />
+      <VendorAuthModal />
     </div>
   );
 };

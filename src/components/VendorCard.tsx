@@ -12,7 +12,12 @@ import {
   Sparkles,
   ShieldCheck,
   Zap,
-  Check
+  Check,
+  Globe,
+  Building2,
+  Store,
+  Send,
+  ExternalLink
 } from 'lucide-react';
 import { Vendor } from '../types';
 import { useApp } from '../context/AppContext';
@@ -125,10 +130,31 @@ export const VendorCard: React.FC<VendorCardProps> = ({ vendor }) => {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30" />
 
           {/* Banner Media Badges */}
-          <div className="absolute top-2 left-2 flex items-center gap-1.5">
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 flex-wrap max-w-[85%]">
             <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-900/85 backdrop-blur-md text-white px-2 py-0.5 rounded-md border border-white/20">
               {vendor.city}
             </span>
+
+            {/* Operating Model Badge */}
+            {vendor.businessType === 'online' && (
+              <span className="text-[10px] font-bold text-purple-200 bg-purple-950/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-purple-500/40 flex items-center gap-1">
+                <Globe className="w-3 h-3 text-purple-400" />
+                Online
+              </span>
+            )}
+            {vendor.businessType === 'hybrid' && (
+              <span className="text-[10px] font-bold text-indigo-200 bg-indigo-950/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-indigo-500/40 flex items-center gap-1">
+                <Store className="w-3 h-3 text-indigo-400" />
+                Hybrid
+              </span>
+            )}
+            {vendor.businessType === 'physical' && (
+              <span className="text-[10px] font-bold text-slate-200 bg-slate-900/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/20 flex items-center gap-1">
+                <Building2 className="w-3 h-3 text-slate-400" />
+                Shop
+              </span>
+            )}
+
             {vendor.isFeatured && (
               <span className="text-[10px] font-bold text-amber-300 bg-amber-950/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-amber-500/40 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 fill-current" />
@@ -220,7 +246,15 @@ export const VendorCard: React.FC<VendorCardProps> = ({ vendor }) => {
                 {vendor.categoryId.replace('_', ' ')}
               </span>
               <span aria-hidden="true" className="text-slate-300 dark:text-slate-600">·</span>
-              <span>{vendor.area}, {vendor.city}</span>
+              {vendor.businessType === 'online' ? (
+                <span className="text-purple-600 dark:text-purple-400 font-medium">
+                  {vendor.serviceRegions && vendor.serviceRegions.length > 0
+                    ? `Serving ${vendor.serviceRegions.slice(0, 2).join(', ')}`
+                    : 'Serving Gujarat & India'}
+                </span>
+              ) : (
+                <span>{vendor.area ? `${vendor.area}, ` : ''}{vendor.city}{vendor.businessType === 'hybrid' ? ' · Store + Online' : ''}</span>
+              )}
               {vendor.distanceKm !== undefined && (
                 <>
                   <span aria-hidden="true" className="text-slate-300 dark:text-slate-600">·</span>
@@ -358,7 +392,7 @@ export const VendorCard: React.FC<VendorCardProps> = ({ vendor }) => {
           </button>
         </div>
 
-        {/* Row 2: 1-Tap Connect Actions (Call, WhatsApp, Map) */}
+        {/* Row 2: 1-Tap Connect Actions (Call, WhatsApp, Map or Website) */}
         <div className="grid grid-cols-3 gap-2">
           {/* Call Now */}
           <button
@@ -380,15 +414,45 @@ export const VendorCard: React.FC<VendorCardProps> = ({ vendor }) => {
             <span>WhatsApp</span>
           </button>
 
-          {/* Directions */}
-          <button
-            onClick={handleDirections}
-            className="h-8.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95"
-            title="Directions"
-          >
-            <Navigation className="w-3.5 h-3.5" />
-            <span>Map</span>
-          </button>
+          {/* Third Action: Website for Online / Route for Physical */}
+          {vendor.businessType === 'online' ? (
+            vendor.websiteUrl ? (
+              <a
+                href={vendor.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="h-8.5 px-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                title="Visit Official Website"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Website</span>
+              </a>
+            ) : (
+              <button
+                onClick={handleQuickBook}
+                className="h-8.5 px-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                title="Send Enquiry"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Enquire</span>
+              </button>
+            )
+          ) : (
+            <button
+              onClick={handleDirections}
+              disabled={vendor.showPublicAddress === false}
+              className={`h-8.5 px-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95 ${
+                vendor.showPublicAddress === false
+                  ? 'bg-slate-50 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed border border-slate-200/50 dark:border-slate-800'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+              }`}
+              title={vendor.showPublicAddress === false ? 'Address hidden by vendor' : 'Get directions'}
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>Map</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

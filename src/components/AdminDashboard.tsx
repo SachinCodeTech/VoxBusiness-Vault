@@ -60,10 +60,16 @@ import {
   Database,
   Server,
   Code2,
-  Shield
+  Shield,
+  Globe,
+  Mail,
+  Edit3,
+  Settings,
+  LogOut,
+  Lock
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { City, Category, Vendor } from '../types';
+import { City, Category, Vendor, BusinessType, OnlineContactChannel } from '../types';
 
 const AVAILABLE_ICONS = [
   { name: 'Scissors', label: 'Hair Salon / Saloon', icon: Scissors },
@@ -139,6 +145,8 @@ export const AdminDashboard: React.FC = () => {
     updateVendorStatus,
     toggleVendorVerificationBadge,
     toggleVendorFeatured,
+    updateVendorProfile,
+    updateVendorVerificationBadges,
     cities,
     addCity,
     addAreaToCity,
@@ -154,7 +162,9 @@ export const AdminDashboard: React.FC = () => {
     deleteReview,
     reports,
     resolveReport,
-    setSelectedVendorForProfile
+    setSelectedVendorForProfile,
+    logoutAdmin,
+    adminSession
   } = useApp();
 
   const [activeAdminTab, setActiveAdminTab] = useState<'vendors' | 'categories' | 'locations' | 'reviews' | 'reports' | 'architecture'>('vendors');
@@ -163,9 +173,25 @@ export const AdminDashboard: React.FC = () => {
   const [vendorSearchQuery, setVendorSearchQuery] = useState('');
   const [vendorFilterCat, setVendorFilterCat] = useState('');
   const [vendorFilterCity, setVendorFilterCity] = useState('');
+  const [vendorFilterType, setVendorFilterType] = useState<string>('all');
+
+  // Edit Operating Type & Links Modal State
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [editBusinessType, setEditBusinessType] = useState<BusinessType>('physical');
+  const [editWebsiteUrl, setEditWebsiteUrl] = useState('');
+  const [editAppStoreUrl, setEditAppStoreUrl] = useState('');
+  const [editServiceRegions, setEditServiceRegions] = useState('');
+  const [editShowPublicAddress, setEditShowPublicAddress] = useState(true);
 
   // Vendor Creation Form State
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
+  const [vBusinessType, setVBusinessType] = useState<BusinessType>('physical');
+  const [vPrimaryOnlineChannel, setVPrimaryOnlineChannel] = useState<OnlineContactChannel>('website');
+  const [vWebsiteUrl, setVWebsiteUrl] = useState('');
+  const [vAppStoreUrl, setVAppStoreUrl] = useState('');
+  const [vServiceRegionsInput, setVServiceRegionsInput] = useState('All Gujarat, Pan-India');
+  const [vShowPublicAddress, setVShowPublicAddress] = useState(true);
+
   const [vBusinessName, setVBusinessName] = useState('');
   const [vOwnerName, setVOwnerName] = useState('');
   const [vPhone, setVPhone] = useState('+91 ');
@@ -257,6 +283,12 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
+    const isOnline = vBusinessType === 'online';
+    if (vBusinessType === 'physical' && !vAddress.trim()) {
+      alert('Physical businesses require a valid street address.');
+      return;
+    }
+
     const servicesArr = vServicesInput
       .split(',')
       .map((s) => s.trim())
@@ -264,31 +296,44 @@ export const AdminDashboard: React.FC = () => {
 
     const cObj = cities.find((c) => c.name.toLowerCase() === vCity.toLowerCase()) || cities[0];
 
+    const regionsArr = vServiceRegionsInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     const result = adminCreateVendor({
       businessName: vBusinessName.trim(),
       ownerName: vOwnerName.trim() || 'Business Manager',
+      businessType: vBusinessType,
       phone: vPhone.trim(),
       whatsapp: vWhatsapp.replace(/\D/g, '') || vPhone.replace(/\D/g, ''),
       email: vEmail.trim() || undefined,
+      websiteUrl: vWebsiteUrl.trim() || undefined,
+      appStoreUrl: vAppStoreUrl.trim() || undefined,
+      primaryOnlineChannel: vBusinessType !== 'physical' ? vPrimaryOnlineChannel : undefined,
+      serviceRegions: vBusinessType !== 'physical' ? (regionsArr.length > 0 ? regionsArr : ['All Gujarat', 'Pan-India']) : ['Gujarat'],
+      showPublicAddress: isOnline ? false : vShowPublicAddress,
       categoryId: vCategoryId,
       subcategoryId: vSubcategoryId || availableSubcategories[0]?.id || 'general',
       services: servicesArr.length > 0 ? servicesArr : ['Doorstep Service', 'Inspection'],
       state: 'Gujarat',
       city: vCity,
-      area: vArea,
-      address: vAddress.trim() || `${vArea}, ${vCity}`,
-      pincode: vPincode.trim(),
-      lat: cObj.lat + (Math.random() - 0.5) * 0.04,
-      lng: cObj.lng + (Math.random() - 0.5) * 0.04,
+      area: isOnline ? undefined : vArea,
+      address: isOnline ? undefined : (vAddress.trim() || `${vArea}, ${vCity}`),
+      pincode: isOnline ? undefined : vPincode.trim(),
+      lat: isOnline ? undefined : cObj.lat + (Math.random() - 0.5) * 0.04,
+      lng: isOnline ? undefined : cObj.lng + (Math.random() - 0.5) * 0.04,
       description:
         vDescription.trim() ||
-        `Verified professional service provider serving ${vArea}, ${vCity} and surrounding Gujarat areas. Guaranteed transparent pricing and skilled work.`,
+        `${vBusinessType === 'online' ? 'Online' : 'Verified'} professional service provider serving ${vCity} and surrounding Gujarat regions. Guaranteed transparent pricing and skilled delivery.`,
       experienceYears: Number(vExperienceYears) || 5,
       startingPrice: Number(vStartingPrice) || 299,
       verificationStatus: vVerificationStatus,
       isPhoneVerified: true,
-      isLocationVerified: true,
+      isEmailVerified: Boolean(vEmail.trim()),
+      isLocationVerified: isOnline ? false : true,
       isDocsVerified: vVerificationStatus === 'verified',
+      isIdentityVerified: vVerificationStatus === 'verified',
       isFeatured: vIsFeatured,
       businessHours: {
         days: 'Mon - Sun',
@@ -296,7 +341,7 @@ export const AdminDashboard: React.FC = () => {
         closeTime: '21:00',
         isOpenToday: true
       },
-      serviceAtCustomerLocation: true,
+      serviceAtCustomerLocation: isOnline ? false : true,
       logoUrl: vLogoUrl.trim(),
       bannerUrl: vBannerUrl.trim() || undefined,
       photos: [vLogoUrl.trim(), vBannerUrl.trim()].filter(Boolean),
@@ -312,8 +357,40 @@ export const AdminDashboard: React.FC = () => {
       setVOwnerName('');
       setVPhone('+91 ');
       setVDescription('');
+      setVWebsiteUrl('');
+      setVAppStoreUrl('');
     } else {
       alert(`Error creating vendor: ${result.error}`);
+    }
+  };
+
+  const handleOpenEditVendor = (v: Vendor) => {
+    setEditingVendor(v);
+    setEditBusinessType(v.businessType || 'physical');
+    setEditWebsiteUrl(v.websiteUrl || '');
+    setEditAppStoreUrl(v.appStoreUrl || '');
+    setEditServiceRegions(v.serviceRegions ? v.serviceRegions.join(', ') : 'All Gujarat, Pan-India');
+    setEditShowPublicAddress(v.showPublicAddress !== false);
+  };
+
+  const handleSaveVendorOperatingModel = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVendor) return;
+
+    const regions = editServiceRegions.split(',').map((s) => s.trim()).filter(Boolean);
+    const res = updateVendorProfile(editingVendor.id, {
+      businessType: editBusinessType,
+      websiteUrl: editWebsiteUrl.trim() || undefined,
+      appStoreUrl: editAppStoreUrl.trim() || undefined,
+      serviceRegions: regions.length > 0 ? regions : ['All Gujarat', 'Pan-India'],
+      showPublicAddress: editBusinessType === 'online' ? false : editShowPublicAddress
+    });
+
+    if (res.success) {
+      alert(`Updated operating model for "${editingVendor.businessName}" to ${editBusinessType.toUpperCase()}.`);
+      setEditingVendor(null);
+    } else {
+      alert(`Error updating vendor: ${res.error}`);
     }
   };
 
@@ -392,17 +469,26 @@ export const AdminDashboard: React.FC = () => {
 
   // Filtered Vendors for Admin Table
   const filteredAdminVendors = vendors.filter((v) => {
+    const q = vendorSearchQuery.toLowerCase().trim();
     const matchesQuery =
-      !vendorSearchQuery ||
-      v.businessName.toLowerCase().includes(vendorSearchQuery.toLowerCase()) ||
-      v.ownerName.toLowerCase().includes(vendorSearchQuery.toLowerCase()) ||
-      v.phone.includes(vendorSearchQuery) ||
-      v.area.toLowerCase().includes(vendorSearchQuery.toLowerCase());
+      !q ||
+      v.businessName.toLowerCase().includes(q) ||
+      v.ownerName.toLowerCase().includes(q) ||
+      v.phone.includes(q) ||
+      (v.area ? v.area.toLowerCase().includes(q) : false) ||
+      (v.city ? v.city.toLowerCase().includes(q) : false) ||
+      (v.serviceRegions ? v.serviceRegions.some((r) => r.toLowerCase().includes(q)) : false) ||
+      (v.businessType ? v.businessType.toLowerCase().includes(q) : false);
 
+    const matchesType = vendorFilterType === 'all' || v.businessType === vendorFilterType;
     const matchesCat = !vendorFilterCat || v.categoryId === vendorFilterCat;
-    const matchesCity = !vendorFilterCity || v.city.toLowerCase() === vendorFilterCity.toLowerCase();
+    const matchesCity =
+      !vendorFilterCity ||
+      v.city.toLowerCase() === vendorFilterCity.toLowerCase() ||
+      (v.businessType === 'online' &&
+        v.serviceRegions?.some((r) => r.toLowerCase().includes(vendorFilterCity.toLowerCase())));
 
-    return matchesQuery && matchesCat && matchesCity;
+    return matchesQuery && matchesType && matchesCat && matchesCity;
   });
 
   return (
@@ -424,7 +510,19 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-[11px] text-slate-300 flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Admin: <strong className="text-white">{adminSession?.adminEmail || 'Super Admin'}</strong></span>
+          </div>
+          <button
+            onClick={logoutAdmin}
+            className="px-3 py-2 rounded-xl border border-rose-800 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+            title="Lock Admin Session and Exit"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>Lock Session</span>
+          </button>
           <button
             onClick={() => {
               handleVendorCategoryChange(categories[0]?.id || 'solar_energy');
@@ -593,6 +691,17 @@ export const AdminDashboard: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              <select
+                value={vendorFilterType}
+                onChange={(e) => setVendorFilterType(e.target.value)}
+                className="text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
+              >
+                <option value="all">All Operating Types</option>
+                <option value="physical">Physical Shops / Offices</option>
+                <option value="online">Online Businesses</option>
+                <option value="hybrid">Hybrid Businesses</option>
+              </select>
             </div>
 
             <button
@@ -614,7 +723,7 @@ export const AdminDashboard: React.FC = () => {
                 Showing {filteredAdminVendors.length} of {vendors.length} Registered Gujarat Vendors
               </span>
               <span className="text-[11px] text-slate-400">
-                Click badges to toggle Verification or Featured status
+                Click verification badges to toggle specific trust states separately
               </span>
             </div>
 
@@ -622,10 +731,12 @@ export const AdminDashboard: React.FC = () => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                   <tr>
-                    <th className="p-3.5">Business & Contact</th>
+                    <th className="p-3.5">Business & Operating Model</th>
                     <th className="p-3.5">Category & Services</th>
-                    <th className="p-3.5">Location</th>
-                    <th className="p-3.5">Verification</th>
+                    <th className="p-3.5">Location / Coverage</th>
+                    <th className="p-3.5">Contact Verification</th>
+                    <th className="p-3.5">Business Identity</th>
+                    <th className="p-3.5">Physical Location</th>
                     <th className="p-3.5">Featured</th>
                     <th className="p-3.5 text-right">Actions</th>
                   </tr>
@@ -638,20 +749,20 @@ export const AdminDashboard: React.FC = () => {
                     return (
                       <tr key={v.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="p-3.5">
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-start gap-2.5">
                             {v.logoUrl ? (
                               <img
                                 src={v.logoUrl}
                                 alt={v.businessName}
-                                className="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                                className="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0 mt-0.5"
                               />
                             ) : (
-                              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 shrink-0 mt-0.5">
                                 {v.businessName.slice(0, 2).toUpperCase()}
                               </div>
                             )}
                             <div>
-                              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                                 <span>{v.businessName}</span>
                                 {v.startingPrice && (
                                   <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 dark:bg-emerald-950/60 px-1 rounded">
@@ -659,7 +770,41 @@ export const AdminDashboard: React.FC = () => {
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[11px] text-slate-400">
+
+                              {/* Operating Model Tag */}
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                {v.businessType === 'online' ? (
+                                  <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 rounded-md border border-purple-200 dark:border-purple-800 inline-flex items-center gap-1">
+                                    <Globe className="w-3 h-3 text-purple-600" />
+                                    Online Business
+                                  </span>
+                                ) : v.businessType === 'hybrid' ? (
+                                  <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1">
+                                    <Store className="w-3 h-3 text-indigo-600" />
+                                    Hybrid Business
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 inline-flex items-center gap-1">
+                                    <Building2 className="w-3 h-3 text-sky-600" />
+                                    Physical Shop/Office
+                                  </span>
+                                )}
+
+                                {v.websiteUrl && (
+                                  <a
+                                    href={v.websiteUrl.startsWith('http') ? v.websiteUrl : `https://${v.websiteUrl}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-slate-500 hover:text-sky-600 flex items-center gap-0.5"
+                                    title="Open business website"
+                                  >
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                    <span>Web</span>
+                                  </a>
+                                )}
+                              </div>
+
+                              <div className="text-[11px] text-slate-400 mt-0.5">
                                 {v.ownerName} · {v.phone}
                               </div>
                             </div>
@@ -671,30 +816,106 @@ export const AdminDashboard: React.FC = () => {
                             <IconC className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                             <span>{catObj?.name || v.categoryId}</span>
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[200px]">
                             {v.services.slice(0, 3).join(', ')}
                             {v.services.length > 3 && ` +${v.services.length - 3}`}
                           </div>
                         </td>
 
                         <td className="p-3.5 text-slate-600 dark:text-slate-300">
-                          <div className="font-medium text-slate-900 dark:text-white">{v.city}</div>
-                          <div className="text-[11px] text-slate-400">{v.area}</div>
+                          {v.businessType === 'online' ? (
+                            <div>
+                              <div className="font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                                <Globe className="w-3 h-3 text-purple-500" />
+                                <span>Base: {v.city}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-400 truncate max-w-[160px]" title={v.serviceRegions?.join(', ')}>
+                                Serving {v.serviceRegions && v.serviceRegions.length > 0 ? v.serviceRegions.slice(0, 2).join(', ') : 'All Gujarat'}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="font-medium text-slate-900 dark:text-white">
+                                {v.city}{v.area ? `, ${v.area}` : ''}
+                              </div>
+                              <div className="text-[11px] text-slate-400 truncate max-w-[160px]" title={v.address}>
+                                {v.showPublicAddress === false ? 'Private Address' : (v.address || 'Address on file')}
+                              </div>
+                            </div>
+                          )}
                         </td>
 
+                        {/* Contact Verification (Phone + Email) */}
+                        <td className="p-3.5 space-y-1">
+                          <button
+                            onClick={() => updateVendorVerificationBadges(v.id, { isPhoneVerified: !v.isPhoneVerified })}
+                            className={`w-full px-2 py-0.5 rounded text-[10px] font-bold flex items-center justify-between gap-1 transition-colors ${
+                              v.isPhoneVerified
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            }`}
+                            title="Click to toggle phone ownership verification"
+                          >
+                            <span>Phone</span>
+                            <span>{v.isPhoneVerified ? '✓ Verified' : 'Pending'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => updateVendorVerificationBadges(v.id, { isEmailVerified: !v.isEmailVerified })}
+                            className={`w-full px-2 py-0.5 rounded text-[10px] font-bold flex items-center justify-between gap-1 transition-colors ${
+                              v.isEmailVerified || v.email
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            }`}
+                            title="Click to toggle email verification"
+                          >
+                            <span>Email</span>
+                            <span>{v.isEmailVerified || v.email ? '✓ Verified' : 'None'}</span>
+                          </button>
+                        </td>
+
+                        {/* Business Identity Verification */}
                         <td className="p-3.5">
                           <button
-                            onClick={() => toggleVendorVerificationBadge(v.id)}
+                            onClick={() => {
+                              const next = !(v.isIdentityVerified || v.isDocsVerified);
+                              updateVendorVerificationBadges(v.id, { isIdentityVerified: next, isDocsVerified: next });
+                            }}
                             className={`px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 transition-colors ${
-                              v.verificationStatus === 'verified'
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                              v.isIdentityVerified || v.isDocsVerified
+                                ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 border border-violet-200 dark:border-violet-800'
                                 : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                             }`}
-                            title="Toggle Verified Business badge"
+                            title="Toggle Business Identity & Document verification"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>{v.verificationStatus === 'verified' ? 'Verified' : 'Pending'}</span>
+                            <span>{v.isIdentityVerified || v.isDocsVerified ? 'ID Verified' : 'Docs Pending'}</span>
                           </button>
+                        </td>
+
+                        {/* Physical Location Verification */}
+                        <td className="p-3.5">
+                          {v.businessType === 'online' ? (
+                            <span
+                              className="px-2 py-1 rounded-lg text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 inline-block cursor-help"
+                              title="Online businesses operate digitally without physical premises verification."
+                            >
+                              N/A · Online Only
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => updateVendorVerificationBadges(v.id, { isLocationVerified: !v.isLocationVerified })}
+                              className={`px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 transition-colors ${
+                                v.isLocationVerified
+                                  ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+                                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                              }`}
+                              title="Toggle Physical Premises verification"
+                            >
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span>{v.isLocationVerified ? 'Verified' : 'Unverified'}</span>
+                            </button>
+                          )}
                         </td>
 
                         <td className="p-3.5">
@@ -712,13 +933,21 @@ export const AdminDashboard: React.FC = () => {
                           </button>
                         </td>
 
-                        <td className="p-3.5 text-right space-x-1">
+                        <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
                           <button
                             onClick={() => setSelectedVendorForProfile(v)}
                             className="p-1.5 text-slate-500 hover:text-sky-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                             title="Preview Full Profile"
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenEditVendor(v)}
+                            className="p-1.5 text-slate-500 hover:text-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                            title="Edit Operating Model, Links & Regions"
+                          >
+                            <Edit3 className="w-4 h-4" />
                           </button>
 
                           <button

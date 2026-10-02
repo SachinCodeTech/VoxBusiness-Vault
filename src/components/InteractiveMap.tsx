@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Vendor } from '../types';
 import { useApp } from '../context/AppContext';
-import { Phone, MessageCircle, Navigation, Star, CheckCircle2, X, ExternalLink } from 'lucide-react';
+import { Phone, MessageCircle, Navigation, Star, CheckCircle2, X, ExternalLink, Globe, Building2, Store } from 'lucide-react';
 
 interface InteractiveMapProps {
   vendors: (Vendor & { distanceKm?: number })[];
@@ -17,12 +17,32 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
     trackVendorMetric
   } = useApp();
 
+  // Filter only vendors with visitable public premises and valid coordinates
+  const visitableVendors = vendors.filter(
+    (v) =>
+      v.businessType !== 'online' &&
+      v.showPublicAddress !== false &&
+      typeof v.lat === 'number' &&
+      typeof v.lng === 'number' &&
+      !isNaN(v.lat) &&
+      !isNaN(v.lng)
+  );
+
+  const onlineVendorsCount = vendors.filter((v) => v.businessType === 'online').length;
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const [activeVendor, setActiveVendor] = useState<(Vendor & { distanceKm?: number }) | null>(
-    vendors[0] || null
+    visitableVendors[0] || null
   );
+
+  // Synchronize active vendor when visitable vendors change
+  useEffect(() => {
+    if (activeVendor && !visitableVendors.some((v) => v.id === activeVendor.id)) {
+      setActiveVendor(visitableVendors[0] || null);
+    }
+  }, [vendors]);
 
   // Determine current center coordinates
   const currentCityObj = cities.find(
@@ -81,7 +101,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
     }
   }, [selectedCity]);
 
-  // Update markers when vendors or user coords change
+  // Update markers when visitable vendors or user coords change
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -104,8 +124,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
       markersRef.current.push(userMarker);
     }
 
-    // Add vendor pins
-    vendors.forEach((vendor) => {
+    // Add vendor pins ONLY for visitable locations
+    visitableVendors.forEach((vendor) => {
+      if (vendor.lat === undefined || vendor.lng === undefined) return;
+
       const isSelected = activeVendor?.id === vendor.id;
       const isVerified = vendor.verificationStatus === 'verified';
 
@@ -140,24 +162,32 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
 
       marker.on('click', () => {
         setActiveVendor(vendor);
-        map.panTo([vendor.lat, vendor.lng], { animate: true });
+        if (vendor.lat && vendor.lng) {
+          map.panTo([vendor.lat, vendor.lng], { animate: true });
+        }
       });
 
       markersRef.current.push(marker);
     });
-  }, [vendors, activeVendor, userCoords]);
+  }, [visitableVendors, activeVendor, userCoords]);
 
   return (
     <div className="relative w-full h-[520px] sm:h-[620px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-md">
       {/* Map DOM Element */}
       <div ref={mapContainerRef} className="w-full h-full z-10" />
 
-      {/* Map Header Overlay */}
-      <div className="absolute top-4 left-4 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-sm flex items-center gap-2 text-xs">
+      {/* Map Header Overlay with Physical vs Online count */}
+      <div className="absolute top-4 left-4 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-sm flex items-center gap-2 text-xs">
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
         <span className="font-semibold text-slate-800 dark:text-slate-200">
-          Showing {vendors.length} vendors in {selectedCity}
+          Showing {visitableVendors.length} physical visitable {visitableVendors.length === 1 ? 'location' : 'locations'} in {selectedCity}
         </span>
+        {onlineVendorsCount > 0 && (
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-purple-600 dark:text-purple-400 font-semibold pl-1 border-l border-slate-200 dark:border-slate-700">
+            <Globe className="w-3 h-3" />
+            <span>+{onlineVendorsCount} online</span>
+          </span>
+        )}
       </div>
 
       {/* Active Vendor Floating Preview Bottom Card */}
@@ -168,7 +198,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
               <img
                 src={activeVendor.logoUrl}
                 alt={activeVendor.businessName}
-                className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200"
+                className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700"
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -180,7 +210,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
                   )}
                 </div>
                 <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                  <span>{activeVendor.area}</span>
+                  <span>{activeVendor.area || activeVendor.city}</span>
                   <span>·</span>
                   <span className="flex items-center text-amber-500 font-bold">
                     <Star className="w-3 h-3 fill-current mr-0.5" />
@@ -209,7 +239,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
           </div>
 
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 line-clamp-1">
-            {activeVendor.address}
+            {activeVendor.address || `${activeVendor.city}, Gujarat`}
           </p>
 
           <div className="mt-3 grid grid-cols-4 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -218,7 +248,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
                 trackVendorMetric(activeVendor.id, 'calls');
                 window.location.href = `tel:${activeVendor.phone.replace(/\s+/g, '')}`;
               }}
-              className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1"
+              className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1 shadow-xs"
             >
               <Phone className="w-3.5 h-3.5 fill-current" />
               <span>Call</span>
@@ -242,7 +272,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
               onClick={() => {
                 trackVendorMetric(activeVendor.id, 'directions');
                 const dest = encodeURIComponent(
-                  `${activeVendor.businessName}, ${activeVendor.address}, ${activeVendor.city}`
+                  `${activeVendor.businessName}, ${activeVendor.address || activeVendor.city}, ${activeVendor.city}`
                 );
                 window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
               }}
@@ -254,7 +284,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ vendors }) => {
 
             <button
               onClick={() => setSelectedVendorForProfile(activeVendor)}
-              className="py-2 bg-slate-900 dark:bg-sky-600 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1"
+              className="py-2 bg-slate-900 dark:bg-sky-600 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1 shadow-xs"
             >
               <span>Profile</span>
               <ExternalLink className="w-3 h-3" />

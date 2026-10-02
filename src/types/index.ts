@@ -59,13 +59,25 @@ export interface BusinessHours {
   isOpenToday: boolean;
 }
 
+export type BusinessType = 'physical' | 'online' | 'hybrid';
+export type OnlineContactChannel = 'website' | 'whatsapp' | 'email' | 'app';
+export type ServiceRegionMode = 'local' | 'gujarat' | 'india' | 'international';
+
 export interface Vendor {
   id: string;
   businessName: string;
   ownerName: string;
+  businessType: BusinessType; // 'physical' | 'online' | 'hybrid'
   phone: string;
   whatsapp: string;
   email?: string;
+  businessEmail?: string;
+  websiteUrl?: string;
+  appStoreUrl?: string;
+  primaryOnlineChannel?: OnlineContactChannel;
+  serviceRegionMode?: ServiceRegionMode;
+  serviceRegions?: string[];
+  showPublicAddress?: boolean;
   categoryId: string;
   subcategoryId: string;
   services: string[];
@@ -74,11 +86,11 @@ export interface Vendor {
   cityId?: string;
   city: string;
   areaId?: string;
-  area: string;
-  address: string;
-  pincode: string;
-  lat: number;
-  lng: number;
+  area?: string;
+  address?: string;
+  pincode?: string;
+  lat?: number;
+  lng?: number;
   description: string;
   experienceYears: number;
   startingPrice?: number;
@@ -86,8 +98,10 @@ export interface Vendor {
   reviewCount: number;
   verificationStatus: 'verified' | 'pending' | 'rejected' | 'suspended';
   isPhoneVerified: boolean;
+  isEmailVerified?: boolean;
   isLocationVerified: boolean;
   isDocsVerified: boolean;
+  isIdentityVerified?: boolean;
   isFeatured?: boolean;
   businessHours: BusinessHours;
   serviceAtCustomerLocation?: boolean;
@@ -184,5 +198,24 @@ export interface SearchFilters {
   minRating: number;
   maxDistanceKm: number;
   serviceType: string;
+  businessType?: 'all' | 'physical' | 'online' | 'hybrid';
   sortBy: 'recommended' | 'rating' | 'distance' | 'price_low';
 }
+
+export interface AdminSession {
+  isAuthenticated: boolean;
+  adminEmail: string;
+  loginTime: number;
+  expiresAt: number;
+  sessionToken: string;
+  role: 'super_admin' | 'moderator';
+}
+
+export interface VendorSession {
+  isAuthenticated: boolean;
+  vendorId: string;
+  businessName: string;
+  phone: string;
+  loginTime: number;
+}
+
