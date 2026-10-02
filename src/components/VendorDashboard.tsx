@@ -31,7 +31,9 @@ import {
   Volume2,
   VolumeX,
   Check,
-  Maximize2
+  Maximize2,
+  Mail,
+  RefreshCw
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -47,6 +49,7 @@ import {
 } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { Vendor } from '../types';
+import { retryFailedLeadNotification } from '../utils/leadNotificationService';
 
 export const VendorDashboard: React.FC = () => {
   const {
@@ -927,7 +930,7 @@ export const VendorDashboard: React.FC = () => {
               {vendorLeads.map((lead) => (
                 <div key={lead.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-slate-900 dark:text-white">
                         {lead.customerName}
                       </span>
@@ -942,6 +945,42 @@ export const VendorDashboard: React.FC = () => {
                       >
                         {lead.status}
                       </span>
+
+                      {/* Email Notification Status Indicator */}
+                      {lead.emailNotificationStatus === 'sent' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                          <span>Email Dispatched</span>
+                        </span>
+                      )}
+                      {lead.emailNotificationStatus === 'pending' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 px-2 py-0.5 rounded-full">
+                          <Clock className="w-3 h-3 text-amber-500 animate-spin" />
+                          <span>Email Queued</span>
+                        </span>
+                      )}
+                      {lead.emailNotificationStatus === 'failed' && (
+                        <button
+                          onClick={async () => {
+                            const res = await retryFailedLeadNotification(lead.id);
+                            if (res.success) {
+                              alert('Notification resent successfully via Resend API.');
+                            } else {
+                              alert(`Retry failed: ${res.error || 'Server error'}`);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 px-2 py-0.5 rounded-full hover:bg-rose-100 transition-colors"
+                        >
+                          <AlertCircle className="w-3 h-3 text-rose-500" />
+                          <span>Email Failed · Retry</span>
+                        </button>
+                      )}
+                      {lead.emailNotificationStatus === 'skipped' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                          <Mail className="w-3 h-3 text-slate-400" />
+                          <span>No Email Configured</span>
+                        </span>
+                      )}
                     </div>
 
                     <div className="text-xs text-slate-600 dark:text-slate-300">

@@ -138,6 +138,7 @@ export interface EnquiryLead {
   quotedPrice?: number;
   advancePaid?: number;
   paymentRef?: string;
+  emailNotificationStatus?: 'pending' | 'sent' | 'failed' | 'skipped';
 }
 
 export interface ChatMessage {

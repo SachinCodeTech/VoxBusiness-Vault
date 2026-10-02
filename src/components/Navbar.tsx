@@ -48,22 +48,22 @@ export const Navbar: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 w-full transition-colors">
       {/* 1. Institutional Top Micro-Utility Strip */}
-      <div className="bg-slate-950 text-slate-300 border-b border-slate-800/80 text-[11px] leading-tight select-none">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-8 flex items-center justify-between gap-4">
+      <div className="bg-slate-950 text-slate-300 border-b border-slate-800/80 text-[11px] leading-tight select-none w-full overflow-hidden">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-8 flex items-center justify-between gap-2 sm:gap-4">
           {/* Trust Guarantee & Verification Notice */}
-          <div className="flex items-center gap-2 truncate">
-            <span className="inline-flex items-center gap-1 font-medium text-emerald-400 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 truncate">
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-400 shrink-0 text-[10.5px] sm:text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 stroke-[2.2]" />
-              <span className="hidden xs:inline">Gujarat Commercial Directory</span>
+              <span>Gujarat Directory</span>
             </span>
-            <span className="text-slate-600 hidden sm:inline" aria-hidden="true">·</span>
-            <span className="text-slate-400 truncate hidden sm:inline">
+            <span className="text-slate-600 hidden xs:inline" aria-hidden="true">·</span>
+            <span className="text-slate-400 truncate text-[10px] sm:text-[11px] hidden xs:inline">
               100% Direct Connect · Zero Brokerage · Aadhaar & GST Verified
             </span>
           </div>
 
           {/* Quick Coverage & Language Controls */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="hidden md:flex items-center gap-1.5 text-slate-400">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Live Coverage:</span>
@@ -73,19 +73,19 @@ export const Navbar: React.FC = () => {
             <div className="h-3 w-px bg-slate-800 hidden md:block" aria-hidden="true" />
 
             {/* Language Selector */}
-            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded px-1 py-0.5" role="group" aria-label="Language selection">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900 border border-slate-800 rounded px-1 py-0.5" role="group" aria-label="Language selection">
               <Globe className="w-3 h-3 text-slate-400 shrink-0" />
               {(
                 [
                   { code: 'en', label: 'EN' },
                   { code: 'gu', label: 'ગુજ' },
-                  { code: 'hi', label: 'हिं' }
+                  { code: 'hi', label: 'હિં' }
                 ] as const
               ).map(({ code, label }) => (
                 <button
                   key={code}
                   onClick={() => setLang(code as Language)}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                  className={`px-1 sm:px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-semibold transition-all ${
                     lang === code
                       ? 'bg-sky-600 text-white shadow-xs'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -101,33 +101,33 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* 2. Main Executive Header Bar */}
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-17 flex items-center justify-between gap-4">
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] w-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-17 flex items-center justify-between gap-2 sm:gap-4">
           {/* Brand Identity & Location Selector */}
-          <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0">
             {/* Primary Brand Logo & Monogram */}
             <button
               onClick={() => {
                 setActiveTab('home');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-left group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded-lg p-0.5"
+              className="text-left group flex items-center gap-2 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded-lg p-0.5 shrink-0"
             >
               {/* Premium Geometric Monogram */}
-              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-slate-900 via-sky-950 to-indigo-900 dark:from-sky-600 dark:via-indigo-600 dark:to-blue-700 flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10 group-hover:scale-[1.02] transition-transform">
-                <span className="font-bold text-base tracking-tight font-sans">VB</span>
+              <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-slate-900 via-sky-950 to-indigo-900 dark:from-sky-600 dark:via-indigo-600 dark:to-blue-700 flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10 group-hover:scale-[1.02] transition-transform shrink-0">
+                <span className="font-bold text-sm sm:text-base tracking-tight font-sans">VB</span>
                 {/* Micro Verified Indicator */}
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
               </div>
 
               {/* Typographic Wordmark & Domain Authority */}
-              <div className="flex flex-col">
+              <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[17px] font-bold tracking-tight text-slate-950 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors leading-tight">
+                  <span className="text-[14px] xs:text-[16px] sm:text-[17px] font-bold tracking-tight text-slate-950 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors leading-tight truncate">
                     Vox Business Vault
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-none">
+                <div className="hidden xs:flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-none">
                   <span className="font-medium text-sky-600 dark:text-sky-400 uppercase tracking-wider text-[9.5px]">
                     Gujarat Registry
                   </span>
@@ -138,18 +138,18 @@ export const Navbar: React.FC = () => {
             </button>
 
             {/* Architected Gujarat Location Trigger */}
-            <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" aria-hidden="true" />
+            <div className="h-7 w-px bg-slate-200 dark:bg-slate-800 hidden md:block" aria-hidden="true" />
 
             <button
               onClick={() => setIsLocationModalOpen(true)}
-              className="group flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 hover:bg-slate-100/90 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition-all text-left max-w-[160px] sm:max-w-[210px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="group flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 hover:bg-slate-100/90 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition-all text-left shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
               title="Change Gujarat City & Area"
               aria-label={`Location: ${selectedArea ? `${selectedArea}, ${selectedCity}` : selectedCity}. Click to change.`}
             >
-              <div className="w-6 h-6 rounded-lg bg-sky-100/80 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 flex items-center justify-center shrink-0">
-                <MapPin className="w-3.5 h-3.5 stroke-[2.2]" />
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-sky-100/80 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 flex items-center justify-center shrink-0">
+                <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[2.2]" />
               </div>
-              <div className="truncate">
+              <div className="hidden sm:block truncate max-w-[130px] md:max-w-[180px]">
                 <span className="block text-[9.5px] uppercase font-semibold tracking-wider text-slate-400 dark:text-slate-500 leading-none mb-0.5">
                   Gujarat City
                 </span>
@@ -157,7 +157,11 @@ export const Navbar: React.FC = () => {
                   {selectedArea ? `${selectedArea}, ${selectedCity}` : selectedCity}
                 </span>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 shrink-0 ml-auto transition-transform group-hover:translate-y-0.5" />
+              {/* Mobile-only compact location text */}
+              <span className="sm:hidden text-xs font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[65px] xs:max-w-[85px]">
+                {selectedCity}
+              </span>
+              <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 shrink-0 ml-0.5 transition-transform group-hover:translate-y-0.5" />
             </button>
           </div>
 
@@ -226,7 +230,7 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Right Action Suite: Role Switcher, Scanners, Alerts, CTA */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
             {/* Multi-role Switcher Segmented Control */}
             <div
               className="hidden md:flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold"
@@ -284,7 +288,7 @@ export const Navbar: React.FC = () => {
             {/* Quick QR Scanner Trigger */}
             <button
               onClick={() => setIsQRScannerOpen(true)}
-              className="p-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-sky-600 transition-colors hidden sm:flex items-center justify-center"
+              className="p-2 sm:p-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-sky-600 transition-colors hidden sm:flex items-center justify-center shrink-0"
               title="Scan Vendor QR Code"
               aria-label="Scan Vendor QR Code"
             >
@@ -294,13 +298,13 @@ export const Navbar: React.FC = () => {
             {/* Notifications Bell */}
             <button
               onClick={() => setIsNotificationsModalOpen(true)}
-              className="relative p-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="relative p-2 sm:p-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
               title="Notifications & Live Updates"
               aria-label="View notifications"
             >
               <Bell className="w-4 h-4" />
               {unreadNotifsCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none ring-2 ring-white dark:ring-slate-900 shadow-xs">
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] bg-rose-600 text-white text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none ring-2 ring-white dark:ring-slate-900 shadow-xs">
                   {unreadNotifsCount}
                 </span>
               )}
@@ -309,7 +313,7 @@ export const Navbar: React.FC = () => {
             {/* CodeTech Info Drawer Trigger */}
             <button
               onClick={() => setIsInfoDrawerOpen(true)}
-              className="p-2.5 rounded-xl border border-sky-200/80 dark:border-sky-900/60 text-sky-600 dark:text-sky-400 bg-sky-50/60 dark:bg-sky-950/40 hover:bg-sky-100/80 dark:hover:bg-sky-900/60 transition-colors"
+              className="p-2 sm:p-2.5 rounded-xl border border-sky-200/80 dark:border-sky-900/60 text-sky-600 dark:text-sky-400 bg-sky-50/60 dark:bg-sky-950/40 hover:bg-sky-100/80 dark:hover:bg-sky-900/60 transition-colors shrink-0"
               title="CodeTech Project Details & Documentation"
               aria-label="Open project info"
             >
@@ -328,7 +332,7 @@ export const Navbar: React.FC = () => {
             {/* Mobile Menu Hamburger */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="lg:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
               aria-label={isMobileMenuOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
               aria-expanded={isMobileMenuOpen}
             >

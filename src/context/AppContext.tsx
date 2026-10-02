@@ -21,6 +21,7 @@ import {
   INITIAL_NOTIFICATIONS
 } from '../data/directoryData';
 import { calculateDistanceKm } from '../utils/distance';
+import { submitLeadWithEmailNotification } from '../utils/leadNotificationService';
 
 interface AppContextType {
   role: UserRole;
@@ -177,17 +178,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
 
-  // Initialize authentic directory data cleanly
+  // Initialize clean state - purge any previous mock seed from localStorage
   const [vendors, setVendors] = useState<Vendor[]>(() => {
+    if (!localStorage.getItem('vbv_seed_purged_v2')) {
+      localStorage.removeItem('vbv_vendors');
+      return [];
+    }
     const saved = localStorage.getItem('vbv_vendors');
     if (saved) {
       try {
         const parsed: Vendor[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingIds = new Set(parsed.map((v) => v.id));
-          const missing = INITIAL_VENDORS.filter((v) => !existingIds.has(v.id));
-          return missing.length > 0 ? [...parsed, ...missing] : parsed;
-        }
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
     return INITIAL_VENDORS;
@@ -199,42 +200,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [reviews, setReviews] = useState<Review[]>(() => {
+    if (!localStorage.getItem('vbv_seed_purged_v2')) {
+      localStorage.removeItem('vbv_reviews');
+      return [];
+    }
     const saved = localStorage.getItem('vbv_reviews');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        const parsed: Review[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
     return INITIAL_REVIEWS;
   });
 
   const [leads, setLeads] = useState<EnquiryLead[]>(() => {
+    if (!localStorage.getItem('vbv_seed_purged_v2')) {
+      localStorage.removeItem('vbv_leads');
+      return [];
+    }
     const saved = localStorage.getItem('vbv_leads');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        const parsed: EnquiryLead[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
     return INITIAL_LEADS;
   });
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+    if (!localStorage.getItem('vbv_seed_purged_v2')) {
+      localStorage.removeItem('vbv_chats');
+      return [];
+    }
     const saved = localStorage.getItem('vbv_chats');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    if (!localStorage.getItem('vbv_seed_purged_v2')) {
+      localStorage.removeItem('vbv_notifs');
+      return [];
+    }
     const saved = localStorage.getItem('vbv_notifs');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        const parsed: NotificationItem[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
     return INITIAL_NOTIFICATIONS;
   });
+
+  // Mark purge completed on mount
+  useEffect(() => {
+    if (!localStorage.getItem('vbv_seed_purged_v2')) {
+      localStorage.setItem('vbv_seed_purged_v2', 'true');
+    }
+  }, []);
 
   const [reports, setReports] = useState<ReportItem[]>(() => {
     const saved = localStorage.getItem('vbv_reports');
@@ -760,10 +784,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
       quotedPrice: data.quotedPrice || 499,
       advancePaid: paymentAmount,
-      paymentRef
+      paymentRef,
+      emailNotificationStatus: 'pending'
     };
 
     setLeads((prev) => [newLead, ...prev]);
+
+    // Dispatch server-side vendor email notification via Supabase & Edge Function
+    submitLeadWithEmailNotification(newLead).then((res) => {
+      if (res.notificationStatus) {
+        setLeads((prev) =>
+          prev.map((l) =>
+            l.id === leadId
+              ? { ...l, emailNotificationStatus: res.notificationStatus as any }
+              : l
+          )
+        );
+      }
+    }).catch((err) => {
+      console.warn('Vendor email notification trigger error:', err);
+    });
 
     // Update vendor enquiries and earnings stats
     setVendors((prev) =>

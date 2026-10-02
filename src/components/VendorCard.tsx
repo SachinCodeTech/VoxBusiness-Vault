@@ -112,7 +112,7 @@ export const VendorCard: React.FC<VendorCardProps> = ({ vendor }) => {
     >
       <div>
         {/* Vendor Banner Strip */}
-        <div className="relative w-[calc(100%+2.5rem)] h-32 -mx-5 -mt-5 mb-4 bg-slate-900 overflow-hidden">
+        <div className="relative -mx-5 -mt-5 mb-4 h-32 bg-slate-900 overflow-hidden">
           <img
             src={
               vendor.bannerUrl ||

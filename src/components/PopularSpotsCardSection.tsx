@@ -45,6 +45,10 @@ export const PopularSpotsCardSection: React.FC = () => {
 
   const allPopularVendors = vendors.filter((v) => targetCategoryIds.includes(v.categoryId));
 
+  if (allPopularVendors.length === 0) {
+    return null;
+  }
+
   // Filter by subTab if selected
   const tabFiltered = selectedSubTab === 'all'
     ? allPopularVendors
@@ -270,11 +274,11 @@ export const PopularSpotsCardSection: React.FC = () => {
       </div>
 
       {/* Segmented Category Filter Pill Tabs */}
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-800/90 rounded-2xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-slate-800/90 rounded-2xl overflow-x-auto max-w-full scrollbar-none shrink-0">
           <button
             onClick={() => setSelectedSubTab('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
               selectedSubTab === 'all'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -284,7 +288,7 @@ export const PopularSpotsCardSection: React.FC = () => {
           </button>
           <button
             onClick={() => setSelectedSubTab('tea_stall')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 ${
               selectedSubTab === 'tea_stall'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -294,7 +298,7 @@ export const PopularSpotsCardSection: React.FC = () => {
           </button>
           <button
             onClick={() => setSelectedSubTab('pan_parlour')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 ${
               selectedSubTab === 'pan_parlour'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -304,7 +308,7 @@ export const PopularSpotsCardSection: React.FC = () => {
           </button>
           <button
             onClick={() => setSelectedSubTab('beauty_parlour')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 ${
               selectedSubTab === 'beauty_parlour'
                 ? 'bg-pink-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -335,7 +339,7 @@ export const PopularSpotsCardSection: React.FC = () => {
             >
               <div>
                 {/* Banner Strip */}
-                <div className="relative w-[calc(100%+2.5rem)] h-36 -mx-5 -mt-5 mb-4 bg-slate-900 overflow-hidden">
+                <div className="relative -mx-5 -mt-5 mb-4 h-36 bg-slate-900 overflow-hidden">
                   <img
                     src={vendor.bannerUrl || vendor.photos[0]}
                     alt={vendor.businessName}

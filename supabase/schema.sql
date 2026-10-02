@@ -257,6 +257,283 @@ CREATE POLICY "Public read approved reviews" ON public.reviews FOR SELECT USING 
 -- Mutations
 CREATE POLICY "Vendors register" ON public.vendors FOR INSERT WITH CHECK (auth.uid() = owner_profile_id OR is_admin());
 CREATE POLICY "Vendors update own" ON public.vendors FOR UPDATE USING (auth.uid() = owner_profile_id OR is_admin());
-CREATE POLICY "Leads insert public" ON public.leads FOR INSERT WITH CHECK (true);
-CREATE POLICY "Leads vendor access" ON public.leads FOR ALL USING (vendor_id IN (SELECT id FROM public.vendors WHERE owner_profile_id = auth.uid()) OR is_admin());
+
+-- Leads RLS: Public can submit enquiries with validation; private reads only for vendor owner, customer, or admin
+DROP POLICY IF EXISTS "Leads insert public" ON public.leads;
+DROP POLICY IF EXISTS "Leads vendor access" ON public.leads;
+DROP POLICY IF EXISTS "Leads customer access" ON public.leads;
+
+CREATE POLICY "Leads insert public" ON public.leads 
+FOR INSERT 
+WITH CHECK (
+    length(trim(customer_name)) >= 2 AND 
+    length(trim(customer_phone)) >= 8 AND 
+    length(trim(service_requested)) >= 2
+);
+
+CREATE POLICY "Leads vendor access" ON public.leads 
+FOR SELECT 
+USING (
+    vendor_id IN (SELECT id FROM public.vendors WHERE owner_profile_id = auth.uid()) 
+    OR is_admin()
+);
+
+CREATE POLICY "Leads vendor update status" ON public.leads 
+FOR UPDATE 
+USING (
+    vendor_id IN (SELECT id FROM public.vendors WHERE owner_profile_id = auth.uid()) 
+    OR is_admin()
+);
+
+CREATE POLICY "Leads customer access" ON public.leads 
+FOR SELECT 
+USING (
+    customer_profile_id IS NOT NULL AND auth.uid() = customer_profile_id
+);
+
 CREATE POLICY "Analytics log public" ON public.analytics_events FOR INSERT WITH CHECK (true);
+
+-- ============================================================================
+-- 11. VENDOR LEAD NOTIFICATION OUTBOX / QUEUE (Server-Side Delivery)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.leads_outbox (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_id UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+    vendor_id UUID NOT NULL REFERENCES public.vendors(id) ON DELETE CASCADE,
+    recipient_email VARCHAR(255) NOT NULL,
+    recipient_name VARCHAR(150) NOT NULL,
+    business_name VARCHAR(200) NOT NULL,
+    service_requested VARCHAR(150) NOT NULL,
+    customer_name VARCHAR(150) NOT NULL,
+    customer_phone VARCHAR(20),
+    customer_area VARCHAR(100),
+    message TEXT,
+    preferred_date DATE,
+    preferred_time VARCHAR(50),
+    advance_paid NUMERIC(10, 2) DEFAULT 0,
+    payment_ref VARCHAR(100),
+    status VARCHAR(30) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'sent', 'failed', 'skipped')),
+    attempt_count INT NOT NULL DEFAULT 0,
+    max_attempts INT NOT NULL DEFAULT 3,
+    last_error TEXT,
+    idempotency_key VARCHAR(100) NOT NULL UNIQUE,
+    provider_message_id VARCHAR(100),
+    sent_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leads_outbox_status ON public.leads_outbox(status, attempt_count);
+CREATE INDEX IF NOT EXISTS idx_leads_outbox_lead ON public.leads_outbox(lead_id);
+CREATE INDEX IF NOT EXISTS idx_leads_outbox_vendor ON public.leads_outbox(vendor_id);
+
+ALTER TABLE public.leads_outbox ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Vendors view own leads_outbox" ON public.leads_outbox
+FOR SELECT
+USING (
+    vendor_id IN (SELECT id FROM public.vendors WHERE owner_profile_id = auth.uid()) 
+    OR is_admin()
+);
+
+-- Legacy alias table/view for lead_notification_queue
+CREATE TABLE IF NOT EXISTS public.lead_notification_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_id UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+    vendor_id UUID NOT NULL REFERENCES public.vendors(id) ON DELETE CASCADE,
+    recipient_email VARCHAR(255) NOT NULL,
+    recipient_name VARCHAR(150) NOT NULL,
+    business_name VARCHAR(200) NOT NULL,
+    service_requested VARCHAR(150) NOT NULL,
+    customer_name VARCHAR(150) NOT NULL,
+    customer_phone VARCHAR(20),
+    customer_area VARCHAR(100),
+    message TEXT,
+    preferred_date DATE,
+    preferred_time VARCHAR(50),
+    advance_paid NUMERIC(10, 2) DEFAULT 0,
+    payment_ref VARCHAR(100),
+    status VARCHAR(30) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'sent', 'failed', 'skipped')),
+    attempt_count INT NOT NULL DEFAULT 0,
+    max_attempts INT NOT NULL DEFAULT 3,
+    last_error TEXT,
+    idempotency_key VARCHAR(100) NOT NULL UNIQUE,
+    provider_message_id VARCHAR(100),
+    sent_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.lead_notification_queue ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Vendors view own notification queue" ON public.lead_notification_queue
+FOR SELECT
+USING (
+    vendor_id IN (SELECT id FROM public.vendors WHERE owner_profile_id = auth.uid()) 
+    OR is_admin()
+);
+
+-- Server-side Trigger: Automatically resolve authorized vendor email and enqueue notification upon lead insert
+CREATE OR REPLACE FUNCTION public.enqueue_leads_outbox()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_vendor RECORD;
+    v_recipient_email VARCHAR(255);
+    v_recipient_name VARCHAR(150);
+    v_business_name VARCHAR(200);
+    v_recent_lead_count INT;
+BEGIN
+    -- Anti-Spam Rate Limiting: Max 8 enquiries per phone number within a rolling 10-minute window
+    SELECT COUNT(*) INTO v_recent_lead_count
+    FROM public.leads
+    WHERE customer_phone = NEW.customer_phone
+      AND created_at > NOW() - INTERVAL '10 minutes';
+
+    IF v_recent_lead_count > 8 THEN
+        RAISE EXCEPTION 'Enquiry rate limit exceeded. Please wait a few minutes before submitting another request.';
+    END IF;
+
+    -- Query authoritative vendor data & owner profile (Never trust frontend or customer email input)
+    SELECT 
+        v.id,
+        v.business_name,
+        v.owner_name,
+        v.email AS vendor_email,
+        p.email AS profile_email
+    INTO v_vendor
+    FROM public.vendors v
+    LEFT JOIN public.profiles p ON p.id = v.owner_profile_id
+    WHERE v.id = NEW.vendor_id;
+
+    IF NOT FOUND THEN
+        RETURN NEW;
+    END IF;
+
+    -- Prioritize authoritative email registered to the vendor listing or owner's authenticated profile
+    v_recipient_email := COALESCE(
+        NULLIF(TRIM(v_vendor.vendor_email), ''),
+        NULLIF(TRIM(v_vendor.profile_email), '')
+    );
+    v_recipient_name := COALESCE(NULLIF(TRIM(v_vendor.owner_name), ''), 'Business Partner');
+    v_business_name := COALESCE(NULLIF(TRIM(v_vendor.business_name), ''), 'Gujarat Service Partner');
+
+    -- Gracefully handle missing or invalid vendor email without blocking the customer's lead
+    IF v_recipient_email IS NULL OR v_recipient_email !~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' THEN
+        INSERT INTO public.leads_outbox (
+            lead_id,
+            vendor_id,
+            recipient_email,
+            recipient_name,
+            business_name,
+            service_requested,
+            customer_name,
+            customer_phone,
+            customer_area,
+            message,
+            preferred_date,
+            preferred_time,
+            advance_paid,
+            payment_ref,
+            status,
+            last_error,
+            idempotency_key
+        ) VALUES (
+            NEW.id,
+            NEW.vendor_id,
+            COALESCE(v_recipient_email, 'unconfigured@voxbusinessvault.internal'),
+            v_recipient_name,
+            v_business_name,
+            NEW.service_requested,
+            NEW.customer_name,
+            NEW.customer_phone,
+            NEW.customer_area,
+            NEW.message,
+            NEW.preferred_date,
+            NEW.preferred_time,
+            NEW.advance_paid,
+            NEW.payment_ref,
+            'skipped',
+            'Vendor does not have a verified email address configured on profile.',
+            'lead_notif_' || NEW.id::text
+        ) ON CONFLICT (idempotency_key) DO NOTHING;
+
+        -- Keep queue mirrored
+        INSERT INTO public.lead_notification_queue (
+            lead_id, vendor_id, recipient_email, recipient_name, business_name,
+            service_requested, customer_name, customer_phone, customer_area, message,
+            preferred_date, preferred_time, advance_paid, payment_ref, status, last_error, idempotency_key
+        ) VALUES (
+            NEW.id, NEW.vendor_id, COALESCE(v_recipient_email, 'unconfigured@voxbusinessvault.internal'),
+            v_recipient_name, v_business_name, NEW.service_requested, NEW.customer_name,
+            NEW.customer_phone, NEW.customer_area, NEW.message, NEW.preferred_date,
+            NEW.preferred_time, NEW.advance_paid, NEW.payment_ref, 'skipped',
+            'Vendor does not have a verified email address configured on profile.',
+            'lead_notif_' || NEW.id::text
+        ) ON CONFLICT (idempotency_key) DO NOTHING;
+
+        RETURN NEW;
+    END IF;
+
+    -- Enqueue into leads_outbox with guaranteed idempotency key to prevent duplicate emails
+    INSERT INTO public.leads_outbox (
+        lead_id,
+        vendor_id,
+        recipient_email,
+        recipient_name,
+        business_name,
+        service_requested,
+        customer_name,
+        customer_phone,
+        customer_area,
+        message,
+        preferred_date,
+        preferred_time,
+        advance_paid,
+        payment_ref,
+        status,
+        idempotency_key
+    ) VALUES (
+        NEW.id,
+        NEW.vendor_id,
+        v_recipient_email,
+        v_recipient_name,
+        v_business_name,
+        NEW.service_requested,
+        NEW.customer_name,
+        NEW.customer_phone,
+        NEW.customer_area,
+        NEW.message,
+        NEW.preferred_date,
+        NEW.preferred_time,
+        NEW.advance_paid,
+        NEW.payment_ref,
+        'pending',
+        'lead_notif_' || NEW.id::text
+    ) ON CONFLICT (idempotency_key) DO NOTHING;
+
+    -- Keep queue mirrored
+    INSERT INTO public.lead_notification_queue (
+        lead_id, vendor_id, recipient_email, recipient_name, business_name,
+        service_requested, customer_name, customer_phone, customer_area, message,
+        preferred_date, preferred_time, advance_paid, payment_ref, status, idempotency_key
+    ) VALUES (
+        NEW.id, NEW.vendor_id, v_recipient_email, v_recipient_name, v_business_name,
+        NEW.service_requested, NEW.customer_name, NEW.customer_phone, NEW.customer_area,
+        NEW.message, NEW.preferred_date, NEW.preferred_time, NEW.advance_paid,
+        NEW.payment_ref, 'pending', 'lead_notif_' || NEW.id::text
+    ) ON CONFLICT (idempotency_key) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_enqueue_leads_outbox ON public.leads;
+DROP TRIGGER IF EXISTS trg_enqueue_vendor_lead_notification ON public.leads;
+
+CREATE TRIGGER trg_enqueue_leads_outbox
+AFTER INSERT ON public.leads
+FOR EACH ROW
+EXECUTE FUNCTION public.enqueue_leads_outbox();
+
+

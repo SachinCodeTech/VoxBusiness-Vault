@@ -168,7 +168,7 @@ export const HeroSearch: React.FC = () => {
   }).slice(0, 10);
 
   return (
-    <div className="relative pt-6 pb-8 md:pt-10 md:pb-12 bg-gradient-to-b from-sky-50/70 via-slate-50/40 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border-b border-slate-100 dark:border-slate-800/80">
+    <div id="hero-search-section" className="relative pt-6 pb-8 md:pt-10 md:pb-12 bg-gradient-to-b from-sky-50/70 via-slate-50/40 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border-b border-slate-100 dark:border-slate-800/80">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
         {/* Geographic location label */}
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs mb-4">
@@ -193,10 +193,10 @@ export const HeroSearch: React.FC = () => {
         </p>
 
         {/* Main Big Search Box */}
-        <div ref={containerRef} className="mt-6 sm:mt-8 max-w-2xl mx-auto relative z-30">
+        <div ref={containerRef} className="mt-5 sm:mt-8 max-w-2xl mx-auto relative z-30">
           <div className="relative flex items-center bg-white dark:bg-slate-800 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/90 dark:border-slate-700 p-1.5 transition-all focus-within:ring-2 focus-within:ring-sky-500 focus-within:border-transparent">
-            <div className="pl-3 text-slate-400">
-              <Search className="w-5 h-5" />
+            <div className="pl-2.5 sm:pl-3 text-slate-400 shrink-0">
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
 
             <input
@@ -204,8 +204,8 @@ export const HeroSearch: React.FC = () => {
               value={inputVal}
               onChange={(e) => handleSearchChange(e.target.value)}
               onFocus={() => setShowSuggestions(inputVal.trim().length > 0)}
-              placeholder="Search vendor, shop, business or service (e.g. AC Repair, Patel Electricals)..."
-              className="w-full px-3 py-2.5 text-sm sm:text-base bg-transparent text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden"
+              placeholder="Search vendor, shop, business or service..."
+              className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-base bg-transparent text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden min-w-0"
             />
 
             {inputVal && (
@@ -215,7 +215,7 @@ export const HeroSearch: React.FC = () => {
                   setFilters((prev) => ({ ...prev, query: '' }));
                   setShowSuggestions(false);
                 }}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg mr-1"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg mr-1 shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -226,7 +226,7 @@ export const HeroSearch: React.FC = () => {
                 setFilters((prev) => ({ ...prev, query: inputVal }));
                 setShowSuggestions(false);
               }}
-              className="px-5 py-2.5 bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors shrink-0 shadow-sm"
+              className="px-3.5 sm:px-5 py-2 sm:py-2.5 bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors shrink-0 shadow-sm"
             >
               Search
             </button>
@@ -324,7 +324,7 @@ export const HeroSearch: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-10 gap-2 sm:gap-3">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-10 gap-1.5 sm:gap-2.5">
             {popularGridCategories.map((cat) => {
               const IconComp = iconMap[cat.iconName] || Wrench;
               const isSelected = filters.category === cat.id;
@@ -338,22 +338,22 @@ export const HeroSearch: React.FC = () => {
                       category: prev.category === cat.id ? '' : cat.id
                     }));
                   }}
-                  className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center group ${
+                  className={`flex flex-col items-center justify-between p-2 sm:p-2.5 rounded-2xl border transition-all text-center group min-h-[76px] sm:min-h-[84px] ${
                     isSelected
-                      ? 'bg-sky-600 border-sky-600 text-white shadow-md shadow-sky-600/20 scale-[1.03]'
+                      ? 'bg-sky-600 border-sky-600 text-white shadow-md shadow-sky-600/20 scale-[1.02]'
                       : 'bg-white dark:bg-slate-800/90 border-slate-200/80 dark:border-slate-700/80 hover:border-sky-300 dark:hover:border-sky-500 text-slate-700 dark:text-slate-200 hover:shadow-xs'
                   }`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center mb-1.5 transition-colors ${
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-1 transition-colors shrink-0 ${
                       isSelected
                         ? 'bg-white/20 text-white'
                         : 'bg-sky-50 dark:bg-slate-700 text-sky-600 dark:text-sky-400 group-hover:bg-sky-100'
                     }`}
                   >
-                    <IconComp className="w-5 h-5" />
+                    <IconComp className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <span className="text-[11px] font-semibold tracking-tight truncate w-full">
+                  <span className="text-[10px] sm:text-[11px] font-semibold tracking-tight leading-[1.15] line-clamp-2 w-full text-center px-0.5 min-h-[22px] sm:min-h-[24px] flex items-center justify-center">
                     {lang === 'gu' ? cat.gujaratiName : cat.name}
                   </span>
                 </button>

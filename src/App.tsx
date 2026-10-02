@@ -21,6 +21,9 @@ import { SavedVendorsView } from './components/SavedVendorsView';
 import { VendorDashboard } from './components/VendorDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { PopularSpotsCardSection } from './components/PopularSpotsCardSection';
+import { DynamicSeoHead } from './components/DynamicSeoHead';
+import { OfflineNotice } from './components/OfflineNotice';
+import { BackToTop } from './components/BackToTop';
 import {
   Sparkles,
   MapPin,
@@ -64,12 +67,18 @@ const MainContent: React.FC = () => {
   const showPopularSpots = !filters.query && (!filters.category || ['tea_stall', 'pan_parlour', 'beauty_parlour'].includes(filters.category));
 
   return (
-    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50/60 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
+      {/* Dynamic SEO Meta Injection */}
+      <DynamicSeoHead />
+
+      {/* Indian Mobile Network Offline Notice */}
+      <OfflineNotice />
+
       {/* Top Navbar */}
       <Navbar />
 
       {/* Main Body depending on activeTab */}
-      <main className="flex-1 pb-20 md:pb-12">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden pb-20 md:pb-12">
         {activeTab === 'home' && (
           <>
             {/* Hero Search Section */}
@@ -323,6 +332,9 @@ const MainContent: React.FC = () => {
 
       {/* Mobile Fixed Bottom Nav */}
       <BottomNav />
+
+      {/* Floating Back to Top Button */}
+      <BackToTop />
 
       {/* Global Modals */}
       <VendorProfileModal />
